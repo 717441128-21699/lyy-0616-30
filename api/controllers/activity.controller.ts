@@ -199,3 +199,22 @@ export async function getActivityDetailStats(req: Request, res: Response): Promi
     res.status(400).json({ error: message });
   }
 }
+
+export async function getActivityReviewReport(req: Request, res: Response): Promise<void> {
+  try {
+    if (!req.user || req.user.role !== 'organization') {
+      res.status(403).json({ error: '无权限访问' });
+      return;
+    }
+    const activityId = Number(req.params.id);
+    const report = activityService.getActivityReviewReport(req.user.userId, activityId);
+    if (!report) {
+      res.status(404).json({ error: '活动不存在或无权限访问' });
+      return;
+    }
+    res.json({ report });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '获取复盘报告失败';
+    res.status(400).json({ error: message });
+  }
+}

@@ -92,15 +92,91 @@ export function getNextCertificateLevel(userId: number): CertificateLevelInfo | 
   return stats.nextLevel;
 }
 
-export function applyCertificate(userId: number): Certificate {
+export function getEarliestAvailableCertificate(userId: number): CertificateLevel | null {
+  const store = getStore();
+  const user = store.users.find((u) => u.id === userId);
+  if (!user) return null;
+
+  const levels = Object.keys(CERTIFICATE_LEVELS) as CertificateLevel[];
+  for (const level of levels) {
+    if (user.totalHours >= CERTIFICATE_LEVELS[level].minHours) {
+      const existing = store.certificates.find(
+        (c) => c.userId === userId && c.level === level
+      );
+      if (!existing) {
+        return level;
+      }
+    }
+  }
+  return null;
+}
+
+export function applyCertificate(userId: number, requestedLevel?: CertificateLevel): Certificate {
   const store = getStore();
   const user = store.users.find((u) => u.id === userId);
   if (!user) {
     throw new Error('用户不存在');
   }
 
-  let eligibleLevel: CertificateLevel | null = null;
   const levels = Object.keys(CERTIFICATE_LEVELS) as CertificateLevel[];
+
+  if (requestedLevel) {
+    const requestedIndex = levels.indexOf(requestedLevel);
+    if (requestedIndex === -1) {
+      throw new Error('无效的证书等级');
+    }
+
+    const existing = store.certificates.find(
+      (c) => c.userId === userId && c.level === requestedLevel
+    );
+    if (existing) {
+      const name = CERTIFICATE_LEVELS[requestedLevel].name;
+      throw new Error(`您已获得${name}证书，无需重复申请`);
+    }
+
+    if (user.totalHours < CERTIFICATE_LEVELS[requestedLevel].minHours) {
+      throw new Error('服务时长未达到该等级要求');
+    }
+
+    for (let i = 0; i < requestedIndex; i++) {
+      const prevLevel = levels[i];
+      const prevExisting = store.certificates.find(
+        (c) => c.userId === userId && c.level === prevLevel
+      );
+      if (!prevExisting && user.totalHours >= CERTIFICATE_LEVELS[prevLevel].minHours) {
+        const name = CERTIFICATE_LEVELS[prevLevel].name;
+        throw new Error(`请先领取${name}证书后再申请`);
+      }
+    }
+
+    const certificateInfo = CERTIFICATE_LEVELS[requestedLevel];
+    const certificate: Certificate = {
+      id: getNextId('certificates'),
+      userId,
+      userName: user.name,
+      certificateNo: generateCertificateNo(),
+      level: requestedLevel,
+      totalHours: user.totalHours,
+      activityCount: user.activityCount || 0,
+      issuedAt: new Date().toISOString(),
+    };
+
+    store.certificates.push(certificate);
+    persist();
+
+    notificationService.createNotification({
+      userId: userId,
+      type: 'certificate_granted',
+      title: '证书颁发成功',
+      content: `恭喜您获得「${certificateInfo.name}」公益证书，证书编号：${certificate.certificateNo}`,
+      relatedId: certificate.id,
+      relatedType: 'certificate',
+    });
+
+    return certificate;
+  }
+
+  let eligibleLevel: CertificateLevel | null = null;
   let highestEligibleExistingLevel: CertificateLevel | null = null;
 
   for (const level of levels) {

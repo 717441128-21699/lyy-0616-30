@@ -311,6 +311,16 @@
       "totalHours": 68,
       "activityCount": 12,
       "issuedAt": "2026-05-15T10:00:00.000Z"
+    },
+    {
+      "id": 2,
+      "userId": 4,
+      "userName": "李四",
+      "certificateNo": "VOL-20260617-D0HWTR",
+      "level": "bronze",
+      "totalHours": 68,
+      "activityCount": 12,
+      "issuedAt": "2026-06-16T22:50:35.231Z"
     }
   ],
   "feedback": [
@@ -344,6 +354,17 @@
       "relatedType": "activity",
       "read": false,
       "createdAt": "2026-06-16T22:24:45.606Z"
+    },
+    {
+      "id": 2,
+      "userId": 4,
+      "type": "certificate_granted",
+      "title": "证书颁发成功",
+      "content": "恭喜您获得「铜质证书」公益证书，证书编号：VOL-20260617-D0HWTR",
+      "relatedId": 2,
+      "relatedType": "certificate",
+      "read": false,
+      "createdAt": "2026-06-16T22:50:35.232Z"
     }
   ],
   "activityReminders": [
@@ -374,9 +395,9 @@
     "users": 6,
     "activities": 8,
     "registrations": 8,
-    "certificates": 2,
+    "certificates": 3,
     "feedback": 3,
-    "notifications": 2,
+    "notifications": 3,
     "activityReminders": 3
   }
 }

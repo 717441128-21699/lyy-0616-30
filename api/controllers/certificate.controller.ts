@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import * as certificateService from '../services/certificate.service.js';
 import { generateCertificatePdf } from '../services/pdf.service.js';
+import type { CertificateLevel } from '../../shared/types.js';
 
 export async function getUserStats(req: Request, res: Response): Promise<void> {
   try {
@@ -61,7 +62,8 @@ export async function applyCertificate(req: Request, res: Response): Promise<voi
       return;
     }
 
-    const certificate = certificateService.applyCertificate(req.user.userId);
+    const { level } = req.body;
+    const certificate = certificateService.applyCertificate(req.user.userId, level as CertificateLevel | undefined);
     res.status(201).json({ certificate });
   } catch (err) {
     const message = err instanceof Error ? err.message : '申请证书失败';

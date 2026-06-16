@@ -57,6 +57,40 @@ export interface ActivityDetailStats {
   }>;
 }
 
+export interface ActivityReviewReport {
+  activity: import('@shared/types').Activity;
+  summary: ActivityStats;
+  volunteers: Array<{
+    registrationId: number;
+    userId: number;
+    userName: string;
+    userPhone: string;
+    status: string;
+    checkInTime: string | null;
+    checkOutTime: string | null;
+    serviceHours: number | null;
+  }>;
+  feedbacks: Array<{
+    feedbackId: number;
+    userId: number;
+    userName: string;
+    rating: number;
+    content: string;
+    createdAt: string;
+  }>;
+  reminders: Array<{
+    id: number;
+    activityId: number;
+    organizerId: number;
+    activityTitle: string;
+    targetScope: 'all_registered' | 'approved_only';
+    receiverCount: number;
+    title: string;
+    content: string;
+    createdAt: string;
+  }>;
+}
+
 export const authApi = {
   login: (data: LoginRequest) =>
     api.post<LoginResponse>('/auth/login', data),
@@ -100,6 +134,8 @@ export const activityApi = {
   },
   getDetailStats: (id: number): Promise<{ detail: ActivityDetailStats }> =>
     api.get<{ detail: ActivityDetailStats }>(`/activities/${id}/stats-detail`),
+  getReviewReport: (id: number): Promise<{ report: ActivityReviewReport }> =>
+    api.get<{ report: ActivityReviewReport }>(`/activities/${id}/review`),
 };
 
 export const registrationApi = {
@@ -132,18 +168,36 @@ export const certificateApi = {
     api.get<ListResponse<Certificate>>('/certificates/mine'),
   getDetail: (id: number) =>
     api.get<Certificate>(`/certificates/${id}`),
-  apply: () =>
-    api.post<{ certificate: Certificate }>('/certificates/apply'),
+  apply: (level?: string): Promise<{ certificate: Certificate }> => {
+    const body = level ? { level } : {};
+    return request('/api/certificates/apply', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
   getNextLevel: () =>
     api.get<any>('/certificates/next-level'),
   downloadPdf: (id: number) => `/api/certificates/${id}/pdf`,
 };
+
+export interface TimelineItem {
+  id: string;
+  type: 'registration_approved' | 'check_in' | 'check_out' | 'certificate' | 'activity_reminder';
+  title: string;
+  description: string;
+  date: string;
+  relatedId?: number;
+  relatedType: 'activity' | 'certificate' | 'registration';
+  iconType: string;
+}
 
 export const userApi = {
   getStats: () =>
     api.get<UserStats>('/user/stats'),
   getMyFeedback: () =>
     api.get<ListResponse<Feedback>>('/user/feedback'),
+  getTimeline: (): Promise<{ timeline: TimelineItem[] }> =>
+    api.get('/user/timeline'),
 };
 
 export const feedbackApi = {

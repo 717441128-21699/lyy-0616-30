@@ -20,15 +20,18 @@ import {
   CheckCircle,
   LogIn,
   Inbox,
+  Megaphone,
+  TrendingUp,
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useNotificationStore } from '../store/useNotificationStore';
 import { registrationApi, certificateApi, userApi, feedbackApi } from '../api';
+import type { TimelineItem } from '../api';
 import type { Registration, Certificate, Feedback, UserStats, CertificateLevel, Notification, NotificationType, CertificateProgressStatus } from '@shared/types';
 import { REGISTRATION_STATUS_LABELS, CERTIFICATE_LEVELS } from '@shared/types';
 import { cn } from '../lib/utils';
 
-type TabType = 'activities' | 'certificates' | 'feedback';
+type TabType = 'activities' | 'certificates' | 'feedback' | 'timeline';
 type SelectedLevel = 'all' | CertificateLevel;
 
 const LEVEL_FILTERS: { key: SelectedLevel; label: string }[] = [
@@ -46,6 +49,14 @@ const notificationIconMap: Record<NotificationType, { icon: typeof Bell; color: 
   check_out_completed: { icon: Clock, color: 'text-cyan-600', bg: 'bg-cyan-50' },
   certificate_granted: { icon: Award, color: 'text-amber-600', bg: 'bg-amber-50' },
   activity_reminder: { icon: Bell, color: 'text-purple-600', bg: 'bg-purple-50' },
+};
+
+const timelineIconMap: Record<TimelineItem['type'], { icon: typeof CheckCircle; color: string; bg: string }> = {
+  registration_approved: { icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-500' },
+  check_in: { icon: LogIn, color: 'text-blue-600', bg: 'bg-blue-500' },
+  check_out: { icon: Clock, color: 'text-cyan-600', bg: 'bg-cyan-500' },
+  certificate: { icon: Award, color: 'text-amber-600', bg: 'bg-amber-500' },
+  activity_reminder: { icon: Megaphone, color: 'text-purple-600', bg: 'bg-purple-500' },
 };
 
 function formatTime(dateStr: string): string {
@@ -82,6 +93,7 @@ export default function Profile() {
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
+  const [timeline, setTimeline] = useState<TimelineItem[]>([]);
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
@@ -98,16 +110,18 @@ export default function Profile() {
     const loadData = async () => {
       setLoading(true);
       try {
-        const [regResult, certResult, statsResult, feedbackResult] = await Promise.all([
+        const [regResult, certResult, statsResult, feedbackResult, timelineResult] = await Promise.all([
           registrationApi.getMyRegistrations(),
           certificateApi.getMyCertificates(),
           userApi.getStats(),
           feedbackApi.getMyFeedback(),
+          userApi.getTimeline(),
         ]);
         setRegistrations(regResult.list);
         setCertificates(certResult.list);
         setStats(statsResult);
         setFeedbacks(feedbackResult.list);
+        setTimeline(timelineResult.timeline);
         fetchNotifications();
       } catch (err) {
         console.error('Failed to load profile data:', err);
@@ -154,6 +168,14 @@ export default function Profile() {
     await markAllAsRead();
   };
 
+  const handleTimelineItemClick = (item: TimelineItem) => {
+    if (item.relatedType === 'activity' && item.relatedId) {
+      navigate(`/activity/${item.relatedId}`);
+    } else if (item.relatedType === 'certificate') {
+      setActiveTab('certificates');
+    }
+  };
+
   const getLevelProgressStatus = (level: typeof CERTIFICATE_LEVELS[number]): CertificateProgressStatus => {
     const achieved = certificates.some((c) => c.level === level.level);
     if (achieved) return 'achieved';
@@ -161,18 +183,26 @@ export default function Profile() {
     return 'pending';
   };
 
-  const handleApplyForLevel = async () => {
-    if (!stats?.nextLevel) return;
+  const handleApplyForLevel = async (level: CertificateLevel) => {
     setApplying(true);
     try {
-      const result = await certificateApi.apply();
+      const result = await certificateApi.apply(level);
       setCertificates([result.certificate, ...certificates]);
       const newStats = await userApi.getStats();
       setStats(newStats);
-      setToastMessage({ type: 'success', text: '证书申请成功！' });
+      const levelInfo = CERTIFICATE_LEVELS.find((l) => l.level === level);
+      setToastMessage({ type: 'success', text: `${levelInfo?.name || '证书'}申请成功！` });
     } catch (err) {
       const message = err instanceof Error ? err.message : '申请失败';
-      if (message.includes('无需重复申请') || message.includes('已获得')) {
+      if (message.includes('请先领取')) {
+        const match = message.match(/请先领取(.+?)证书/);
+        const prevName = match?.[1] || '前置等级';
+        const currLevelInfo = CERTIFICATE_LEVELS.find((l) => l.level === level);
+        setToastMessage({
+          type: 'warning',
+          text: `请先领取${prevName}证书后，再申请${currLevelInfo?.name || '该等级'}证书哦`,
+        });
+      } else if (message.includes('无需重复申请') || message.includes('已获得')) {
         setToastMessage({ type: 'warning', text: '您已获得该等级证书，无需重复申请' });
       } else {
         setToastMessage({ type: 'error', text: message });
@@ -527,6 +557,7 @@ export default function Profile() {
               { key: 'activities', label: '参与记录', icon: Calendar },
               { key: 'certificates', label: '我的证书', icon: Award },
               { key: 'feedback', label: '我的反馈', icon: FileText },
+              { key: 'timeline', label: '成长时间线', icon: TrendingUp },
             ].map((tab) => (
               <button
                 key={tab.key}
@@ -658,7 +689,7 @@ export default function Profile() {
                                       可申请
                                     </span>
                                     <button
-                                      onClick={handleApplyForLevel}
+                                      onClick={() => handleApplyForLevel(level.level as CertificateLevel)}
                                       disabled={applying}
                                       className="px-3 py-1 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-medium rounded-lg hover:shadow-md transition-all disabled:opacity-50"
                                     >
@@ -784,43 +815,102 @@ export default function Profile() {
                   </div>
                 )}
               </div>
-            ) : feedbacks.length > 0 ? (
-              <div className="space-y-3">
-                {feedbacks.map((feedback) => (
-                  <div
-                    key={feedback.id}
-                    className="p-4 border border-gray-100 rounded-xl hover:border-emerald-200 transition-all cursor-pointer"
-                    onClick={() => navigate(`/activity/${feedback.activityId}`)}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-medium text-gray-800">活动 #{feedback.activityId}</h4>
-                      <div className="flex items-center space-x-1">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            className={cn(
-                              'w-4 h-4',
-                              i < feedback.rating
-                                ? 'text-amber-400 fill-amber-400'
-                                : 'text-gray-200'
-                            )}
-                          />
-                        ))}
+            ) : activeTab === 'feedback' ? (
+              feedbacks.length > 0 ? (
+                <div className="space-y-3">
+                  {feedbacks.map((feedback) => (
+                    <div
+                      key={feedback.id}
+                      className="p-4 border border-gray-100 rounded-xl hover:border-emerald-200 transition-all cursor-pointer"
+                      onClick={() => navigate(`/activity/${feedback.activityId}`)}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium text-gray-800">活动 #{feedback.activityId}</h4>
+                        <div className="flex items-center space-x-1">
+                          {[...Array(5)].map((_, i) => (
+                            <Star
+                              key={i}
+                              className={cn(
+                                'w-4 h-4',
+                                i < feedback.rating
+                                  ? 'text-amber-400 fill-amber-400'
+                                  : 'text-gray-200'
+                              )}
+                            />
+                          ))}
+                        </div>
                       </div>
+                      <p className="text-sm text-gray-600 line-clamp-2">{feedback.content}</p>
+                      <p className="text-xs text-gray-400 mt-2">
+                        {new Date(feedback.createdAt).toLocaleDateString('zh-CN')}
+                      </p>
                     </div>
-                    <p className="text-sm text-gray-600 line-clamp-2">{feedback.content}</p>
-                    <p className="text-xs text-gray-400 mt-2">
-                      {new Date(feedback.createdAt).toLocaleDateString('zh-CN')}
-                    </p>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Star className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+                  <p className="text-gray-400">暂无反馈记录</p>
+                </div>
+              )
+            ) : activeTab === 'timeline' ? (
+              timeline.length > 0 ? (
+                <div className="relative">
+                  <div className="absolute left-5 top-2 bottom-2 w-0.5 bg-gradient-to-b from-emerald-400 via-teal-400 to-cyan-400" />
+                  <div className="space-y-4">
+                    {timeline.map((item) => {
+                      const iconConfig = timelineIconMap[item.type];
+                      const Icon = iconConfig.icon;
+                      return (
+                        <div
+                          key={item.id}
+                          onClick={() => handleTimelineItemClick(item)}
+                          className="relative pl-14 cursor-pointer group"
+                        >
+                          <div
+                            className={cn(
+                              'absolute left-0 top-1 w-10 h-10 rounded-full flex items-center justify-center shadow-md ring-4 ring-white',
+                              iconConfig.bg
+                            )}
+                          >
+                            <Icon className="w-5 h-5 text-white" />
+                          </div>
+                          <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm hover:shadow-md hover:border-emerald-200 transition-all group-hover:translate-x-1">
+                            <div className="flex items-start justify-between mb-1">
+                              <h4 className="font-medium text-gray-800">{item.title}</h4>
+                              <span className="text-xs text-gray-400 flex-shrink-0 ml-2">
+                                {new Date(item.date).toLocaleDateString('zh-CN', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                })}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-500 line-clamp-2">{item.description}</p>
+                            <p className="text-xs text-gray-400 mt-2">
+                              {new Date(item.date).toLocaleTimeString('zh-CN', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <Star className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-                <p className="text-gray-400">暂无反馈记录</p>
-              </div>
-            )}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <TrendingUp className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+                  <p className="text-gray-400 mb-4">暂无成长记录</p>
+                  <button
+                    onClick={() => navigate('/')}
+                    className="px-5 py-2 bg-emerald-500 text-white text-sm font-medium rounded-lg hover:bg-emerald-600 transition-colors"
+                  >
+                    去参与活动
+                  </button>
+                </div>
+              )
+            ) : null}
           </div>
         </div>
       </div>

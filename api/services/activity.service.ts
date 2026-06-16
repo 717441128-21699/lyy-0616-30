@@ -205,6 +205,40 @@ export interface ActivityDetailStats {
   }>;
 }
 
+export interface ActivityReviewReport {
+  activity: Activity;
+  summary: ActivityStats;
+  volunteers: Array<{
+    registrationId: number;
+    userId: number;
+    userName: string;
+    userPhone: string;
+    status: string;
+    checkInTime: string | null;
+    checkOutTime: string | null;
+    serviceHours: number | null;
+  }>;
+  feedbacks: Array<{
+    feedbackId: number;
+    userId: number;
+    userName: string;
+    rating: number;
+    content: string;
+    createdAt: string;
+  }>;
+  reminders: Array<{
+    id: number;
+    activityId: number;
+    organizerId: number;
+    activityTitle: string;
+    targetScope: 'all_registered' | 'approved_only';
+    receiverCount: number;
+    title: string;
+    content: string;
+    createdAt: string;
+  }>;
+}
+
 export function getOrganizerActivityStats(
   organizerId: number,
   dateFrom?: string,
@@ -214,7 +248,7 @@ export function getOrganizerActivityStats(
   let activities = store.activities.filter((a) => a.organizerId === organizerId);
 
   if (dateFrom) {
-    activities = activities.filter(a => a.startDate >= dateFrom);
+    activities = activities.filter(a => a.endDate >= dateFrom);
   }
   if (dateTo) {
     activities = activities.filter(a => a.startDate <= dateTo);
@@ -288,4 +322,25 @@ export function getOrganizerActivityDetailStats(organizerId: number, activityId:
   }));
   
   return { summary, volunteers, feedbacks };
+}
+
+export function getActivityReviewReport(organizerId: number, activityId: number): ActivityReviewReport | null {
+  const store = getStore();
+  const activity = store.activities.find(a => a.id === activityId && a.organizerId === organizerId);
+  if (!activity) return null;
+  
+  const detailStats = getOrganizerActivityDetailStats(organizerId, activityId);
+  if (!detailStats) return null;
+  
+  const reminders = store.activityReminders
+    .filter(r => r.activityId === activityId && r.organizerId === organizerId)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  
+  return {
+    activity,
+    summary: detailStats.summary,
+    volunteers: detailStats.volunteers,
+    feedbacks: detailStats.feedbacks,
+    reminders,
+  };
 }

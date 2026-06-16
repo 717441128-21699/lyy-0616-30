@@ -7,6 +7,7 @@ import {
   Star,
   BarChart3,
   Eye,
+  FileText,
 } from 'lucide-react';
 import { OrgLayout } from '../../components/OrgLayout';
 import { activityApi } from '../../api';
@@ -292,13 +293,22 @@ export default function OrgStats() {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-center">
-                        <button
-                          onClick={() => navigate(`/org/activity/${stat.activityId}/stats`)}
-                          className="inline-flex items-center space-x-1 px-3 py-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg text-sm font-medium transition-colors"
-                        >
-                          <Eye className="w-4 h-4" />
-                          <span>查看详情</span>
-                        </button>
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => navigate(`/org/activity/${stat.activityId}/stats`)}
+                            className="inline-flex items-center space-x-1 px-3 py-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg text-sm font-medium transition-colors"
+                          >
+                            <Eye className="w-4 h-4" />
+                            <span>查看详情</span>
+                          </button>
+                          <button
+                            onClick={() => navigate(`/org/activity/${stat.activityId}/review`)}
+                            className="inline-flex items-center space-x-1 px-3 py-1.5 text-blue-600 hover:bg-blue-50 rounded-lg text-sm font-medium transition-colors"
+                          >
+                            <FileText className="w-4 h-4" />
+                            <span>复盘报告</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

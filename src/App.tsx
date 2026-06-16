@@ -14,6 +14,7 @@ import OrgCheckIn from './pages/org/OrgCheckIn';
 import OrgSummary from './pages/org/OrgSummary';
 import OrgStats from './pages/org/OrgStats';
 import OrgActivityStatsDetail from './pages/org/OrgActivityStatsDetail';
+import OrgActivityReview from './pages/org/OrgActivityReview';
 import OrgNotifications from './pages/org/OrgNotifications';
 import { useAuthStore } from './store/useAuthStore';
 
@@ -50,6 +51,7 @@ function AppContent() {
         <Route path="/org/summary" element={<OrgSummary />} />
         <Route path="/org/stats" element={<OrgStats />} />
         <Route path="/org/activity/:id/stats" element={<OrgActivityStatsDetail />} />
+        <Route path="/org/activity/:id/review" element={<OrgActivityReview />} />
         <Route path="/org/notifications" element={<OrgNotifications />} />
       </Routes>
     </div>

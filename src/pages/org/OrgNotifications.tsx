@@ -45,7 +45,7 @@ export default function OrgNotifications() {
         activityApi.getMyActivities(),
         activityReminderApi.getList(),
       ]);
-      setActivities(activityResult.list.filter(a => a.status === 'published' || a.status === 'ongoing'));
+      setActivities(activityResult.list);
       setReminders(reminderResult.reminders);
     } catch (err) {
       console.error('Failed to load data:', err);
