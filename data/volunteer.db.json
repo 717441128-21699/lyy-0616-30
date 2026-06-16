@@ -333,11 +333,50 @@
       "createdAt": "2026-06-06T11:20:00.000Z"
     }
   ],
+  "notifications": [
+    {
+      "id": 1,
+      "userId": 4,
+      "type": "activity_reminder",
+      "title": "???????",
+      "content": "??????2???????????,?????????",
+      "relatedId": 3,
+      "relatedType": "activity",
+      "read": false,
+      "createdAt": "2026-06-16T22:24:45.606Z"
+    }
+  ],
+  "activityReminders": [
+    {
+      "id": 1,
+      "activityId": 6,
+      "organizerId": 1,
+      "activityTitle": "植树造林公益行动",
+      "targetScope": "all_registered",
+      "receiverCount": 0,
+      "title": "活动提醒：植树造林公益行动",
+      "content": "????????????????,????????!",
+      "createdAt": "2026-06-16T22:24:30.894Z"
+    },
+    {
+      "id": 2,
+      "activityId": 3,
+      "organizerId": 1,
+      "activityTitle": "敬老院探访活动",
+      "targetScope": "approved_only",
+      "receiverCount": 1,
+      "title": "???????",
+      "content": "??????2???????????,?????????",
+      "createdAt": "2026-06-16T22:24:45.607Z"
+    }
+  ],
   "nextIds": {
     "users": 6,
     "activities": 8,
     "registrations": 8,
     "certificates": 2,
-    "feedback": 3
+    "feedback": 3,
+    "notifications": 2,
+    "activityReminders": 3
   }
 }

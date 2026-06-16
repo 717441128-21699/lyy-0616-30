@@ -91,8 +91,13 @@ export const activityApi = {
     api.get<ListResponse<Activity>>('/activities/my/list'),
   addSummary: (id: number, summary: string) =>
     api.post<Activity>(`/activities/${id}/summary`, { summary }),
-  getStats: (): Promise<{ stats: ActivityStats[] }> =>
-    api.get<{ stats: ActivityStats[] }>('/activities/stats'),
+  getStats: (params?: { dateFrom?: string; dateTo?: string }): Promise<{ stats: ActivityStats[] }> => {
+    const qs = new URLSearchParams();
+    if (params?.dateFrom) qs.set('dateFrom', params.dateFrom);
+    if (params?.dateTo) qs.set('dateTo', params.dateTo);
+    const query = qs.toString();
+    return request(`/api/activities/stats${query ? `?${query}` : ''}`);
+  },
   getDetailStats: (id: number): Promise<{ detail: ActivityDetailStats }> =>
     api.get<{ detail: ActivityDetailStats }>(`/activities/${id}/stats-detail`),
 };
@@ -159,4 +164,23 @@ export const notificationApi = {
     request(`/notifications/${id}/read`, { method: 'PATCH' }),
   markAllAsRead: (): Promise<{ count: number }> =>
     request('/notifications/mark-all-read', { method: 'POST' }),
+};
+
+export interface ActivityReminderRecord {
+  id: number;
+  activityId: number;
+  organizerId: number;
+  activityTitle: string;
+  targetScope: 'all_registered' | 'approved_only';
+  receiverCount: number;
+  title: string;
+  content: string;
+  createdAt: string;
+}
+
+export const activityReminderApi = {
+  send: (data: { activityId: number; targetScope: 'all_registered' | 'approved_only'; title?: string; content: string }): Promise<{ record: ActivityReminderRecord }> =>
+    request('/activity-reminders', { method: 'POST', body: JSON.stringify(data) }),
+  getList: (): Promise<{ reminders: ActivityReminderRecord[] }> =>
+    request('/activity-reminders'),
 };

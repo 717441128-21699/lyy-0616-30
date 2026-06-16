@@ -14,6 +14,7 @@ import type {
   UserRole,
   Notification,
   NotificationType,
+  ActivityReminderRecord,
 } from '../../shared/types.js';
 
 const DB_FILE_PATH = path.resolve(process.cwd(), 'data', 'volunteer.db.json');
@@ -25,6 +26,7 @@ interface DataStore {
   certificates: Certificate[];
   feedback: Feedback[];
   notifications: Notification[];
+  activityReminders: ActivityReminderRecord[];
   nextIds: {
     users: number;
     activities: number;
@@ -32,6 +34,7 @@ interface DataStore {
     certificates: number;
     feedback: number;
     notifications: number;
+    activityReminders: number;
   };
 }
 
@@ -42,6 +45,7 @@ const store: DataStore = {
   certificates: [],
   feedback: [],
   notifications: [],
+  activityReminders: [],
   nextIds: {
     users: 1,
     activities: 1,
@@ -49,6 +53,7 @@ const store: DataStore = {
     certificates: 1,
     feedback: 1,
     notifications: 1,
+    activityReminders: 1,
   },
 };
 
@@ -93,9 +98,11 @@ function loadFromFile(): boolean {
       store.certificates = data.certificates;
       store.feedback = data.feedback;
       store.notifications = data.notifications || [];
+      store.activityReminders = data.activityReminders || [];
       store.nextIds = {
         ...data.nextIds,
         notifications: data.nextIds.notifications || 1,
+        activityReminders: data.nextIds.activityReminders || 1,
       };
       return true;
     }

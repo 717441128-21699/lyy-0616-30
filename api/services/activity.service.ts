@@ -205,9 +205,20 @@ export interface ActivityDetailStats {
   }>;
 }
 
-export function getOrganizerActivityStats(organizerId: number): ActivityStats[] {
+export function getOrganizerActivityStats(
+  organizerId: number,
+  dateFrom?: string,
+  dateTo?: string
+): ActivityStats[] {
   const store = getStore();
-  const activities = store.activities.filter((a) => a.organizerId === organizerId);
+  let activities = store.activities.filter((a) => a.organizerId === organizerId);
+
+  if (dateFrom) {
+    activities = activities.filter(a => a.startDate >= dateFrom);
+  }
+  if (dateTo) {
+    activities = activities.filter(a => a.startDate <= dateTo);
+  }
   
   return activities.map((activity) => {
     const registrations = store.registrations.filter((r) => r.activityId === activity.id);

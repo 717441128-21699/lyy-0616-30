@@ -8,9 +8,10 @@ import {
   Clock,
   Award,
   Inbox,
+  Megaphone,
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
-import { notificationApi } from '../api';
+import { useNotificationStore } from '../store/useNotificationStore';
 import type { Notification, NotificationType } from '@shared/types';
 import { cn } from '../lib/utils';
 
@@ -20,6 +21,7 @@ const notificationIconMap: Record<NotificationType, { icon: typeof Bell; color: 
   check_in_completed: { icon: LogIn, color: 'text-blue-600', bg: 'bg-blue-50' },
   check_out_completed: { icon: Clock, color: 'text-cyan-600', bg: 'bg-cyan-50' },
   certificate_granted: { icon: Award, color: 'text-amber-600', bg: 'bg-amber-50' },
+  activity_reminder: { icon: Megaphone, color: 'text-purple-600', bg: 'bg-purple-50' },
 };
 
 function formatTime(dateStr: string): string {
@@ -40,10 +42,7 @@ function formatTime(dateStr: string): string {
 export default function Notifications() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const { notifications, unreadCount, loading, fetchNotifications, markAsRead, markAllAsRead } = useNotificationStore();
   const [markingAll, setMarkingAll] = useState(false);
 
   useEffect(() => {
@@ -52,47 +51,23 @@ export default function Notifications() {
       return;
     }
 
-    const loadData = async () => {
-      setLoading(true);
-      try {
-        const result = await notificationApi.getList();
-        setNotifications(result.notifications);
-        setUnreadCount(result.unreadCount);
-      } catch (err) {
-        console.error('Failed to load notifications:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
-  }, [user, navigate]);
+    fetchNotifications();
+  }, [user, navigate, fetchNotifications]);
 
   const handleMarkAsRead = async (notification: Notification) => {
     if (notification.read) return;
-    try {
-      await notificationApi.markAsRead(notification.id);
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === notification.id ? { ...n, read: true } : n))
-      );
-      setUnreadCount((prev) => Math.max(0, prev - 1));
-    } catch (err) {
-      console.error('Failed to mark notification as read:', err);
-    }
+    await markAsRead(notification.id);
   };
 
   const handleMarkAllAsRead = async () => {
     if (unreadCount === 0 || markingAll) return;
     setMarkingAll(true);
     try {
-      const result = await notificationApi.markAllAsRead();
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-      setUnreadCount(0);
-      if (result.count > 0) {
-        alert(`已将 ${result.count} 条通知标记为已读`);
+      const prevCount = unreadCount;
+      await markAllAsRead();
+      if (prevCount > 0) {
+        alert(`已将 ${prevCount} 条通知标记为已读`);
       }
-    } catch (err) {
-      console.error('Failed to mark all as read:', err);
     } finally {
       setMarkingAll(false);
     }

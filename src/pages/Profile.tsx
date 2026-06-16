@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   User,
   Clock,
@@ -15,10 +15,16 @@ import {
   Eye,
   AlertCircle,
   XCircle,
+  Bell,
+  CheckCheck,
+  CheckCircle,
+  LogIn,
+  Inbox,
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
+import { useNotificationStore } from '../store/useNotificationStore';
 import { registrationApi, certificateApi, userApi, feedbackApi } from '../api';
-import type { Registration, Certificate, Feedback, UserStats, CertificateLevel } from '@shared/types';
+import type { Registration, Certificate, Feedback, UserStats, CertificateLevel, Notification, NotificationType, CertificateProgressStatus } from '@shared/types';
 import { REGISTRATION_STATUS_LABELS, CERTIFICATE_LEVELS } from '@shared/types';
 import { cn } from '../lib/utils';
 
@@ -33,6 +39,30 @@ const LEVEL_FILTERS: { key: SelectedLevel; label: string }[] = [
   { key: 'platinum', label: '白金' },
 ];
 
+const notificationIconMap: Record<NotificationType, { icon: typeof Bell; color: string; bg: string }> = {
+  registration_approved: { icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+  registration_rejected: { icon: XCircle, color: 'text-red-600', bg: 'bg-red-50' },
+  check_in_completed: { icon: LogIn, color: 'text-blue-600', bg: 'bg-blue-50' },
+  check_out_completed: { icon: Clock, color: 'text-cyan-600', bg: 'bg-cyan-50' },
+  certificate_granted: { icon: Award, color: 'text-amber-600', bg: 'bg-amber-50' },
+  activity_reminder: { icon: Bell, color: 'text-purple-600', bg: 'bg-purple-50' },
+};
+
+function formatTime(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+
+  if (minutes < 1) return '刚刚';
+  if (minutes < 60) return `${minutes} 分钟前`;
+  if (hours < 24) return `${hours} 小时前`;
+  if (days < 7) return `${days} 天前`;
+  return date.toLocaleDateString('zh-CN');
+}
+
 const getLevelColor = (level: CertificateLevel): string => {
   const info = CERTIFICATE_LEVELS.find((l) => l.level === level);
   return info?.color || '#10B981';
@@ -46,6 +76,7 @@ const getLevelName = (level: CertificateLevel): string => {
 export default function Profile() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
+  const { notifications, unreadCount, fetchNotifications, markAsRead, markAllAsRead } = useNotificationStore();
 
   const [activeTab, setActiveTab] = useState<TabType>('activities');
   const [registrations, setRegistrations] = useState<Registration[]>([]);
@@ -77,6 +108,7 @@ export default function Profile() {
         setCertificates(certResult.list);
         setStats(statsResult);
         setFeedbacks(feedbackResult.list);
+        fetchNotifications();
       } catch (err) {
         console.error('Failed to load profile data:', err);
       } finally {
@@ -85,7 +117,7 @@ export default function Profile() {
     };
 
     loadData();
-  }, [user, navigate]);
+  }, [user, navigate, fetchNotifications]);
 
   useEffect(() => {
     if (toastMessage) {
@@ -95,6 +127,60 @@ export default function Profile() {
       return () => clearTimeout(timer);
     }
   }, [toastMessage]);
+
+  const handleNotificationClick = async (notification: Notification) => {
+    if (!notification.read) {
+      await markAsRead(notification.id);
+    }
+    if (notification.relatedId && notification.relatedType) {
+      if (notification.relatedType === 'activity') {
+        navigate(`/activity/${notification.relatedId}`);
+      } else if (notification.relatedType === 'registration') {
+        setActiveTab('activities');
+      } else if (notification.relatedType === 'certificate') {
+        setActiveTab('certificates');
+      }
+    }
+  };
+
+  const sortedNotifications = [...notifications].sort((a, b) => {
+    if (a.read !== b.read) return a.read ? 1 : -1;
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+
+  const recentNotifications = sortedNotifications.slice(0, 5);
+
+  const handleMarkAllAsRead = async () => {
+    await markAllAsRead();
+  };
+
+  const getLevelProgressStatus = (level: typeof CERTIFICATE_LEVELS[number]): CertificateProgressStatus => {
+    const achieved = certificates.some((c) => c.level === level.level);
+    if (achieved) return 'achieved';
+    if ((stats?.totalHours || 0) >= level.hours) return 'available';
+    return 'pending';
+  };
+
+  const handleApplyForLevel = async () => {
+    if (!stats?.nextLevel) return;
+    setApplying(true);
+    try {
+      const result = await certificateApi.apply();
+      setCertificates([result.certificate, ...certificates]);
+      const newStats = await userApi.getStats();
+      setStats(newStats);
+      setToastMessage({ type: 'success', text: '证书申请成功！' });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '申请失败';
+      if (message.includes('无需重复申请') || message.includes('已获得')) {
+        setToastMessage({ type: 'warning', text: '您已获得该等级证书，无需重复申请' });
+      } else {
+        setToastMessage({ type: 'error', text: message });
+      }
+    } finally {
+      setApplying(false);
+    }
+  };
 
   const handleApplyCertificate = async () => {
     if (!stats?.nextLevel) return;
@@ -336,6 +422,105 @@ export default function Profile() {
           </div>
         )}
 
+        <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center">
+                <Bell className="w-5 h-5 text-emerald-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-800">我的消息</h3>
+                {unreadCount > 0 && (
+                  <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 bg-red-500 text-white text-xs font-medium rounded-full ml-2">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Link
+                to="/notifications"
+                className="text-sm text-emerald-600 hover:text-emerald-700 font-medium flex items-center space-x-0.5"
+              >
+                <span>查看全部</span>
+                <ChevronRight className="w-4 h-4" />
+              </Link>
+              {unreadCount > 0 && (
+                <button
+                  onClick={handleMarkAllAsRead}
+                  className="px-3 py-1.5 text-sm text-gray-600 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors flex items-center space-x-1"
+                >
+                  <CheckCheck className="w-4 h-4" />
+                  <span>一键已读</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {recentNotifications.length === 0 ? (
+            <div className="text-center py-8">
+              <Inbox className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+              <p className="text-gray-400 text-sm">暂无通知</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {recentNotifications.map((notification) => {
+                const iconConfig = notificationIconMap[notification.type];
+                const Icon = iconConfig.icon;
+                return (
+                  <div
+                    key={notification.id}
+                    onClick={() => handleNotificationClick(notification)}
+                    className={cn(
+                      'py-3 cursor-pointer transition-all hover:bg-emerald-50/30 -mx-2 px-2 rounded-lg',
+                      !notification.read && 'bg-emerald-50/40'
+                    )}
+                  >
+                    <div className="flex items-start space-x-3">
+                      <div className="relative flex-shrink-0">
+                        <div
+                          className={cn(
+                            'w-9 h-9 rounded-lg flex items-center justify-center',
+                            iconConfig.bg
+                          )}
+                        >
+                          <Icon className={cn('w-4 h-4', iconConfig.color)} />
+                        </div>
+                        {!notification.read && (
+                          <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-blue-500 rounded-full border-2 border-white shadow-sm" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between space-x-2">
+                          <h4
+                            className={cn(
+                              'font-medium text-sm',
+                              !notification.read ? 'text-gray-900' : 'text-gray-700'
+                            )}
+                          >
+                            {notification.title}
+                          </h4>
+                          <span className="text-xs text-gray-400 flex-shrink-0 mt-0.5">
+                            {formatTime(notification.createdAt)}
+                          </span>
+                        </div>
+                        <p
+                          className={cn(
+                            'text-xs mt-0.5 line-clamp-1',
+                            !notification.read ? 'text-gray-600' : 'text-gray-500'
+                          )}
+                        >
+                          {notification.content}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
           <div className="flex border-b border-gray-100">
             {[
@@ -421,6 +606,89 @@ export default function Profile() {
               )
             ) : activeTab === 'certificates' ? (
               <div>
+                <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 rounded-2xl p-6 mb-6 border border-emerald-100">
+                  <h3 className="font-bold text-gray-800 mb-5 flex items-center space-x-2">
+                    <Trophy className="w-5 h-5 text-emerald-600" />
+                    <span>证书成长进度</span>
+                  </h3>
+                  <div className="space-y-4">
+                    {CERTIFICATE_LEVELS.map((level, index) => {
+                      const status = getLevelProgressStatus(level);
+                      const totalHours = stats?.totalHours || 0;
+                      const progress = status === 'pending'
+                        ? Math.min((totalHours / level.hours) * 100, 100)
+                        : 100;
+                      const remainingHours = Math.max(level.hours - totalHours, 0);
+
+                      return (
+                        <div key={level.level}>
+                          {index > 0 && (
+                            <div className="flex justify-center -my-1 mb-2">
+                              <ChevronRight className="w-4 h-4 text-gray-300 rotate-90" />
+                            </div>
+                          )}
+                          <div className="bg-white rounded-xl p-4 shadow-sm">
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center space-x-3">
+                                <div
+                                  className="w-10 h-10 rounded-lg flex items-center justify-center"
+                                  style={{ backgroundColor: `${level.color}20` }}
+                                >
+                                  <Trophy
+                                    className="w-5 h-5"
+                                    style={{ color: level.color }}
+                                  />
+                                </div>
+                                <div>
+                                  <h4 className="font-medium text-gray-800 text-sm">
+                                    {level.name}
+                                  </h4>
+                                  <p className="text-xs text-gray-500">需 {level.hours} 小时</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                {status === 'achieved' && (
+                                  <span className="px-2.5 py-1 bg-emerald-100 text-emerald-700 text-xs font-medium rounded-full">
+                                    已获得
+                                  </span>
+                                )}
+                                {status === 'available' && (
+                                  <>
+                                    <span className="px-2.5 py-1 bg-teal-100 text-teal-700 text-xs font-medium rounded-full">
+                                      可申请
+                                    </span>
+                                    <button
+                                      onClick={handleApplyForLevel}
+                                      disabled={applying}
+                                      className="px-3 py-1 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-medium rounded-lg hover:shadow-md transition-all disabled:opacity-50"
+                                    >
+                                      {applying ? '申请中...' : '立即申请'}
+                                    </button>
+                                  </>
+                                )}
+                                {status === 'pending' && (
+                                  <span className="px-2.5 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full">
+                                    还差 {remainingHours.toFixed(1)} 小时
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                              <div
+                                className="h-full rounded-full transition-all duration-500"
+                                style={{
+                                  width: `${progress}%`,
+                                  backgroundColor: level.color,
+                                }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <div className="mb-5">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex flex-wrap gap-2">

@@ -21,6 +21,8 @@ export default function OrgStats() {
 
   const [statsList, setStatsList] = useState<ActivityStats[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   useEffect(() => {
     if (!user || user.role !== 'organization') {
@@ -30,16 +32,29 @@ export default function OrgStats() {
     loadData();
   }, [user, navigate]);
 
-  const loadData = async () => {
+  const loadData = async (params?: { dateFrom?: string; dateTo?: string }) => {
     setLoading(true);
     try {
-      const result = await activityApi.getStats();
+      const result = await activityApi.getStats(params);
       setStatsList(result.stats);
     } catch (err) {
       console.error('Failed to load stats:', err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleApplyFilter = () => {
+    loadData({
+      dateFrom: dateFrom || undefined,
+      dateTo: dateTo || undefined,
+    });
+  };
+
+  const handleResetFilter = () => {
+    setDateFrom('');
+    setDateTo('');
+    loadData();
   };
 
   const totalActivities = statsList.length;
@@ -88,6 +103,44 @@ export default function OrgStats() {
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-800 mb-1">数据看板</h1>
           <p className="text-gray-500">查看活动整体数据表现和运营效果</p>
+        </div>
+
+        <div className="bg-white rounded-2xl p-5 shadow-sm mb-8">
+          <div className="flex flex-wrap items-end gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-1.5">开始日期</label>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              />
+            </div>
+            <div className="text-gray-400 pb-2">至</div>
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-1.5">结束日期</label>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleApplyFilter}
+                className="px-5 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors"
+              >
+                应用筛选
+              </button>
+              <button
+                onClick={handleResetFilter}
+                className="px-5 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
+              >
+                重置
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-4 gap-6 mb-8">

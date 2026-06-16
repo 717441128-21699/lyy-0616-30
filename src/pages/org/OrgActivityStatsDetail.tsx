@@ -12,6 +12,7 @@ import {
   LogIn,
   LogOut,
   MessageSquare,
+  Download,
 } from 'lucide-react';
 import { OrgLayout } from '../../components/OrgLayout';
 import { activityApi } from '../../api';
@@ -58,6 +59,68 @@ export default function OrgActivityStatsDetail() {
       hour: '2-digit',
       minute: '2-digit',
     });
+  };
+
+  const downloadCSV = (filename: string, headers: string[], rows: (string | number | null)[][]) => {
+    const csv = [
+      headers.join(','),
+      ...rows.map(row =>
+        row.map(cell => {
+          const str = (cell ?? '').toString();
+          if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+            return `"${str.replace(/"/g, '""')}"`;
+          }
+          return str;
+        }).join(',')
+      )
+    ].join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const getTodayStr = () => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}${m}${d}`;
+  };
+
+  const sanitizeFilename = (name: string) => {
+    return name.replace(/[\\/:*?"<>|]/g, '');
+  };
+
+  const handleExportVolunteers = () => {
+    if (!detail) return;
+    const headers = ['姓名', '手机', '报名状态', '签到时间', '签退时间', '服务时长(小时)'];
+    const rows = detail.volunteers.map(v => [
+      v.userName,
+      v.userPhone,
+      REGISTRATION_STATUS_LABELS[v.status as keyof typeof REGISTRATION_STATUS_LABELS] || v.status,
+      v.checkInTime ? new Date(v.checkInTime).toLocaleString('zh-CN') : '',
+      v.checkOutTime ? new Date(v.checkOutTime).toLocaleString('zh-CN') : '',
+      v.serviceHours !== null ? v.serviceHours : '',
+    ]);
+    const filename = `${sanitizeFilename(detail.summary.activityTitle)}_志愿者明细_${getTodayStr()}.csv`;
+    downloadCSV(filename, headers, rows);
+  };
+
+  const handleExportFeedbacks = () => {
+    if (!detail) return;
+    const headers = ['用户名', '评分', '反馈内容', '提交时间'];
+    const rows = detail.feedbacks.map(f => [
+      f.userName,
+      f.rating,
+      f.content,
+      new Date(f.createdAt).toLocaleString('zh-CN'),
+    ]);
+    const filename = `${sanitizeFilename(detail.summary.activityTitle)}_反馈汇总_${getTodayStr()}.csv`;
+    downloadCSV(filename, headers, rows);
   };
 
   const statusColors: Record<string, string> = {
@@ -157,13 +220,31 @@ export default function OrgActivityStatsDetail() {
   return (
     <OrgLayout>
       <div className="p-8">
-        <button
-          onClick={() => navigate('/org/stats')}
-          className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 mb-6 transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          <span>返回看板</span>
-        </button>
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+          <button
+            onClick={() => navigate('/org/stats')}
+            className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span>返回看板</span>
+          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleExportVolunteers}
+              className="inline-flex items-center space-x-1.5 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              <span>导出志愿者明细</span>
+            </button>
+            <button
+              onClick={handleExportFeedbacks}
+              className="inline-flex items-center space-x-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              <span>导出反馈汇总</span>
+            </button>
+          </div>
+        </div>
 
         <div className="bg-white rounded-2xl shadow-sm p-6 mb-8">
           <div className="flex items-start justify-between">

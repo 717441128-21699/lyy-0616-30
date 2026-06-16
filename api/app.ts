@@ -15,6 +15,7 @@ import registrationRoutes from './routes/registration.routes.js'
 import certificateRoutes from './routes/certificate.routes.js'
 import userRoutes from './routes/user.routes.js'
 import notificationRoutes from './routes/notification.routes.js'
+import activityReminderRoutes from './routes/activityReminder.routes.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -35,6 +36,7 @@ app.use('/api/registrations', registrationRoutes)
 app.use('/api/certificates', certificateRoutes)
 app.use('/api/user', userRoutes)
 app.use('/api/notifications', notificationRoutes)
+app.use('/api/activity-reminders', activityReminderRoutes)
 
 app.use(
   '/api/health',

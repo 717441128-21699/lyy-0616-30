@@ -1,26 +1,18 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { Heart, User, LogOut, LayoutDashboard, Bell } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
-import { notificationApi } from '../api';
+import { useNotificationStore } from '../store/useNotificationStore';
 
 export function Navbar() {
   const { user, logout } = useAuthStore();
+  const { unreadCount, fetchUnreadCount } = useNotificationStore();
   const navigate = useNavigate();
-  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     if (!user) return;
-    const fetchUnreadCount = async () => {
-      try {
-        const result = await notificationApi.getUnreadCount();
-        setUnreadCount(result.count);
-      } catch (err) {
-        console.error('Failed to fetch unread count:', err);
-      }
-    };
     fetchUnreadCount();
-  }, [user]);
+  }, [user, fetchUnreadCount]);
 
   const handleLogout = () => {
     logout();

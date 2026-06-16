@@ -8,6 +8,8 @@ export type RegistrationStatus = 'pending' | 'approved' | 'rejected' | 'cancelle
 
 export type CertificateLevel = 'bronze' | 'silver' | 'gold' | 'platinum';
 
+export type CertificateProgressStatus = 'achieved' | 'available' | 'pending';
+
 export interface User {
   id: number;
   username: string;
@@ -204,7 +206,20 @@ export type NotificationType =
   | 'registration_rejected'
   | 'check_in_completed'
   | 'check_out_completed'
-  | 'certificate_granted';
+  | 'certificate_granted'
+  | 'activity_reminder';
+
+export interface ActivityReminderRecord {
+  id: number;
+  activityId: number;
+  organizerId: number;
+  activityTitle: string;
+  targetScope: 'all_registered' | 'approved_only';
+  receiverCount: number;
+  title: string;
+  content: string;
+  createdAt: string;
+}
 
 export interface Notification {
   id: number;

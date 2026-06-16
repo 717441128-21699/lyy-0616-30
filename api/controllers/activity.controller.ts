@@ -172,7 +172,8 @@ export async function getActivityStats(req: Request, res: Response): Promise<voi
       res.status(403).json({ error: '无权限访问' });
       return;
     }
-    const stats = activityService.getOrganizerActivityStats(req.user.userId);
+    const { dateFrom, dateTo } = req.query as { dateFrom?: string; dateTo?: string };
+    const stats = activityService.getOrganizerActivityStats(req.user.userId, dateFrom, dateTo);
     res.json({ stats });
   } catch (err) {
     const message = err instanceof Error ? err.message : '获取统计失败';
