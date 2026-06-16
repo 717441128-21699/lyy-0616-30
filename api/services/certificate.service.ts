@@ -1,4 +1,4 @@
-import { getStore, getNextId, generateCertificateNo } from '../db/index.js';
+import { getStore, getNextId, generateCertificateNo, persist } from '../db/index.js';
 import type { Certificate, CertificateLevel, CertificateLevelInfo, UserStats } from '../../shared/types.js';
 
 const CERTIFICATE_LEVELS: Record<CertificateLevel, { name: string; minHours: number; color: string }> = {
@@ -18,6 +18,7 @@ export function getUserStats(userId: number): UserStats {
       certificateCount: 0,
       nextLevel: null,
       currentLevel: null,
+      upcomingLevel: null,
     };
   }
 
@@ -34,8 +35,25 @@ export function getUserStats(userId: number): UserStats {
 
   let nextLevel: CertificateLevelInfo | null = null;
   for (const level of levels) {
+    if (user.totalHours >= CERTIFICATE_LEVELS[level].minHours) {
+      const existing = certificates.find((c) => c.level === level);
+      if (!existing) {
+        nextLevel = {
+          level,
+          name: CERTIFICATE_LEVELS[level].name,
+          requiredHours: CERTIFICATE_LEVELS[level].minHours,
+          currentHours: user.totalHours,
+          progress: 100,
+        };
+        break;
+      }
+    }
+  }
+
+  let upcomingLevel: CertificateLevelInfo | null = null;
+  for (const level of levels) {
     if (user.totalHours < CERTIFICATE_LEVELS[level].minHours) {
-      nextLevel = {
+      upcomingLevel = {
         level,
         name: CERTIFICATE_LEVELS[level].name,
         requiredHours: CERTIFICATE_LEVELS[level].minHours,
@@ -52,6 +70,7 @@ export function getUserStats(userId: number): UserStats {
     certificateCount: certificates.length,
     currentLevel,
     nextLevel,
+    upcomingLevel,
   };
 }
 
@@ -82,15 +101,15 @@ export function applyCertificate(userId: number): Certificate {
   let eligibleLevel: CertificateLevel | null = null;
   const levels = Object.keys(CERTIFICATE_LEVELS) as CertificateLevel[];
 
-  for (let i = levels.length - 1; i >= 0; i--) {
-    if (user.totalHours >= CERTIFICATE_LEVELS[levels[i]].minHours) {
+  for (const level of levels) {
+    if (user.totalHours >= CERTIFICATE_LEVELS[level].minHours) {
       const existing = store.certificates.find(
-        (c) => c.userId === userId && c.level === levels[i]
+        (c) => c.userId === userId && c.level === level
       );
       if (!existing) {
-        eligibleLevel = levels[i];
+        eligibleLevel = level;
+        break;
       }
-      break;
     }
   }
 
@@ -110,6 +129,7 @@ export function applyCertificate(userId: number): Certificate {
   };
 
   store.certificates.push(certificate);
+  persist();
   return certificate;
 }
 

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import * as registrationService from '../services/registration.service.js';
 import * as authService from '../services/auth.service.js';
+import * as activityService from '../services/activity.service.js';
 
 export async function registerForActivity(req: Request, res: Response): Promise<void> {
   try {
@@ -54,6 +55,18 @@ export async function getActivityRegistrations(req: Request, res: Response): Pro
     }
 
     const activityId = Number(req.params.activityId);
+    const activity = activityService.getActivityById(activityId);
+
+    if (!activity) {
+      res.status(404).json({ error: '活动不存在' });
+      return;
+    }
+
+    if (activity.organizerId !== req.user.userId) {
+      res.status(403).json({ error: '无权限操作' });
+      return;
+    }
+
     const registrations = registrationService.getRegistrationsByActivity(activityId);
     
     res.json({ list: registrations });
@@ -78,14 +91,26 @@ export async function auditRegistration(req: Request, res: Response): Promise<vo
       return;
     }
 
-    const registration = registrationService.auditRegistration(registrationId, approved, auditNote);
-    
+    const registration = registrationService.getRegistrationById(registrationId);
     if (!registration) {
       res.status(404).json({ error: '报名记录不存在' });
       return;
     }
 
-    res.json({ registration });
+    const activity = activityService.getActivityById(registration.activityId);
+    if (!activity) {
+      res.status(404).json({ error: '活动不存在' });
+      return;
+    }
+
+    if (activity.organizerId !== req.user.userId) {
+      res.status(403).json({ error: '无权限操作' });
+      return;
+    }
+
+    const updatedRegistration = registrationService.auditRegistration(registrationId, approved, auditNote);
+
+    res.json({ registration: updatedRegistration });
   } catch (err) {
     const message = err instanceof Error ? err.message : '审核失败';
     res.status(400).json({ error: message });
@@ -100,14 +125,21 @@ export async function cancelRegistration(req: Request, res: Response): Promise<v
     }
 
     const registrationId = Number(req.params.id);
-    const registration = registrationService.cancelRegistration(registrationId);
+    const registration = registrationService.getRegistrationById(registrationId);
     
     if (!registration) {
       res.status(404).json({ error: '报名记录不存在' });
       return;
     }
 
-    res.json({ success: true, registration });
+    if (registration.userId !== req.user.userId) {
+      res.status(403).json({ error: '无权限操作' });
+      return;
+    }
+
+    const cancelledRegistration = registrationService.cancelRegistration(registrationId);
+
+    res.json({ success: true, registration: cancelledRegistration });
   } catch (err) {
     const message = err instanceof Error ? err.message : '取消报名失败';
     res.status(400).json({ error: message });
@@ -128,14 +160,27 @@ export async function checkIn(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const registration = registrationService.checkInByToken(token);
+    const registration = registrationService.getRegistrationByToken(token);
     
     if (!registration) {
       res.status(404).json({ error: '无效的签到凭证' });
       return;
     }
 
-    res.json({ registration });
+    const activity = activityService.getActivityById(registration.activityId);
+    if (!activity) {
+      res.status(404).json({ error: '活动不存在' });
+      return;
+    }
+
+    if (activity.organizerId !== req.user.userId) {
+      res.status(403).json({ error: '无权限操作' });
+      return;
+    }
+
+    const checkedInRegistration = registrationService.checkInByToken(token);
+
+    res.json({ registration: checkedInRegistration });
   } catch (err) {
     const message = err instanceof Error ? err.message : '签到失败';
     res.status(400).json({ error: message });
@@ -156,14 +201,27 @@ export async function checkOut(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const registration = registrationService.checkOutByToken(token);
+    const registration = registrationService.getRegistrationByToken(token);
     
     if (!registration) {
       res.status(404).json({ error: '无效的签退凭证' });
       return;
     }
 
-    res.json({ registration });
+    const activity = activityService.getActivityById(registration.activityId);
+    if (!activity) {
+      res.status(404).json({ error: '活动不存在' });
+      return;
+    }
+
+    if (activity.organizerId !== req.user.userId) {
+      res.status(403).json({ error: '无权限操作' });
+      return;
+    }
+
+    const checkedOutRegistration = registrationService.checkOutByToken(token);
+
+    res.json({ registration: checkedOutRegistration });
   } catch (err) {
     const message = err instanceof Error ? err.message : '签退失败';
     res.status(400).json({ error: message });

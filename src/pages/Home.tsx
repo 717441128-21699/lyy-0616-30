@@ -12,6 +12,8 @@ export default function Home() {
   const [keyword, setKeyword] = useState('');
   const [selectedCity, setSelectedCity] = useState('');
   const [selectedType, setSelectedType] = useState<ActivityType | ''>('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [showCityDropdown, setShowCityDropdown] = useState(false);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -31,6 +33,8 @@ export default function Home() {
         keyword: keyword || undefined,
         city: selectedCity || undefined,
         type: selectedType || undefined,
+        dateFrom: dateFrom || undefined,
+        dateTo: dateTo || undefined,
         page: pageNum,
         pageSize,
       });
@@ -52,7 +56,7 @@ export default function Home() {
 
   useEffect(() => {
     fetchActivities(1, false);
-  }, [keyword, selectedCity, selectedType]);
+  }, [keyword, selectedCity, selectedType, dateFrom, dateTo]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,6 +71,8 @@ export default function Home() {
     setKeyword('');
     setSelectedCity('');
     setSelectedType('');
+    setDateFrom('');
+    setDateTo('');
   };
 
   const hasMore = activities.length < total;
@@ -119,17 +125,17 @@ export default function Home() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6">
         <div className="bg-white rounded-2xl shadow-lg shadow-gray-100 p-6 mb-8">
           <div className="flex items-center space-x-2 text-gray-700 mb-4">
-            <Filter className="w-5 h-5 text-emerald-500" />
-            <span className="font-medium">筛选条件</span>
-            {(selectedCity || selectedType) && (
-              <button
-                onClick={resetFilters}
-                className="ml-auto text-sm text-emerald-600 hover:text-emerald-700 font-medium"
-              >
-                重置筛选
-              </button>
-            )}
-          </div>
+              <Filter className="w-5 h-5 text-emerald-500" />
+              <span className="font-medium">筛选条件</span>
+              {(selectedCity || selectedType || dateFrom || dateTo) && (
+                <button
+                  onClick={resetFilters}
+                  className="ml-auto text-sm text-emerald-600 hover:text-emerald-700 font-medium"
+                >
+                  重置筛选
+                </button>
+              )}
+            </div>
 
           <div className="flex flex-wrap gap-4">
             <div className="relative">
@@ -194,6 +200,24 @@ export default function Home() {
                   {label}
                 </button>
               ))}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                placeholder="开始日期"
+                className="px-4 py-2.5 bg-gray-50 hover:bg-gray-100 rounded-full text-gray-700 transition-colors border border-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
+              />
+              <span className="text-gray-400 text-sm">至</span>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                placeholder="结束日期"
+                className="px-4 py-2.5 bg-gray-50 hover:bg-gray-100 rounded-full text-gray-700 transition-colors border border-gray-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
+              />
             </div>
           </div>
         </div>

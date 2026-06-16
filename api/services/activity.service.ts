@@ -1,4 +1,4 @@
-import { getStore, getNextId } from '../db/index.js';
+import { getStore, getNextId, persist } from '../db/index.js';
 import type { Activity, ActivityType, ActivityStatus, CreateActivityRequest } from '../../shared/types.js';
 
 interface ActivityQuery {
@@ -6,8 +6,8 @@ interface ActivityQuery {
   type?: string;
   keyword?: string;
   status?: string;
-  startDate?: string;
-  endDate?: string;
+  dateFrom?: string;
+  dateTo?: string;
   page?: number;
   pageSize?: number;
 }
@@ -36,6 +36,13 @@ export function getActivityList(query: ActivityQuery): { list: Activity[]; total
 
   if (query.status) {
     activities = activities.filter((a) => a.status === query.status);
+  }
+
+  if (query.dateFrom) {
+    activities = activities.filter((a) => a.endDate >= query.dateFrom!);
+  }
+  if (query.dateTo) {
+    activities = activities.filter((a) => a.startDate <= query.dateTo!);
   }
 
   activities.sort((a, b) => {
@@ -89,6 +96,7 @@ export function createActivity(data: CreateActivityRequest & { organizerId: numb
   if (org) {
     org.activityCount = (org.activityCount || 0) + 1;
   }
+  persist();
 
   return activity;
 }
@@ -99,6 +107,7 @@ export function updateActivity(id: number, data: Partial<Activity>): Activity | 
   if (index === -1) return null;
 
   store.activities[index] = { ...store.activities[index], ...data };
+  persist();
   return store.activities[index];
 }
 
@@ -114,6 +123,7 @@ export function deleteActivity(id: number): boolean {
   }
 
   store.activities.splice(index, 1);
+  persist();
   return true;
 }
 
@@ -131,6 +141,7 @@ export function incrementParticipants(activityId: number): boolean {
   if (activity.currentParticipants >= activity.maxParticipants) return false;
 
   activity.currentParticipants++;
+  persist();
   return true;
 }
 
@@ -141,6 +152,7 @@ export function decrementParticipants(activityId: number): boolean {
   if (activity.currentParticipants <= 0) return false;
 
   activity.currentParticipants--;
+  persist();
   return true;
 }
 
@@ -151,5 +163,6 @@ export function addActivitySummary(activityId: number, summary: string): Activit
 
   activity.summary = summary;
   activity.status = 'completed';
+  persist();
   return activity;
 }

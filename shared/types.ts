@@ -153,6 +153,7 @@ export interface UserStats {
   certificateCount: number;
   currentLevel: CertificateLevel | null;
   nextLevel: CertificateLevelInfo | null;
+  upcomingLevel: CertificateLevelInfo | null;
 }
 
 export interface PaginatedResponse<T> {

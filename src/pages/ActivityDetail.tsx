@@ -179,8 +179,8 @@ export default function ActivityDetail() {
   const hasRegistered = !!registration;
   const isApproved = registration?.status === 'approved';
   const isCompleted = activity.status === 'completed';
-  const hasParticipated = registration && (registration.status === 'completed' || registration.status === 'approved');
-  const canSubmitFeedback = isCompleted && hasParticipated && !feedbackList.some(fb => fb.userId === user?.id);
+  const hasCompletedService = registration?.status === 'completed';
+  const canSubmitFeedback = isCompleted && hasCompletedService && !feedbackList.some(fb => fb.userId === user?.id);
 
   const getStatusColor = (status: string) => {
     switch (status) {

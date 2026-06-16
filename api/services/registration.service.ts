@@ -1,4 +1,4 @@
-import { getStore, getNextId, generateQrToken } from '../db/index.js';
+import { getStore, getNextId, generateQrToken, persist } from '../db/index.js';
 import { incrementParticipants, decrementParticipants } from './activity.service.js';
 import { updateUserStats } from './auth.service.js';
 import type { Registration, RegistrationStatus } from '../../shared/types.js';
@@ -35,6 +35,7 @@ export function createRegistration(
   };
 
   store.registrations.push(registration);
+  persist();
   return registration;
 }
 
@@ -92,6 +93,7 @@ export function auditRegistration(
   }
 
   registration.auditedAt = new Date().toISOString();
+  persist();
   return registration;
 }
 
@@ -106,6 +108,7 @@ export function cancelRegistration(id: number): Registration | null {
 
   registration.status = 'cancelled';
   registration.cancelledAt = new Date().toISOString();
+  persist();
   return registration;
 }
 
@@ -118,6 +121,7 @@ export function checkInByToken(token: string): Registration | null {
   }
 
   registration.checkInTime = new Date().toISOString();
+  persist();
   return registration;
 }
 
@@ -145,6 +149,7 @@ export function checkOutByToken(token: string): Registration | null {
   if (registration.serviceHours > 0) {
     updateUserStats(registration.userId, registration.serviceHours);
   }
+  persist();
 
   return registration;
 }

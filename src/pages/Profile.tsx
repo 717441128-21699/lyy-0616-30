@@ -97,8 +97,6 @@ export default function Profile() {
     ? CERTIFICATE_LEVELS.find((l) => l.level === stats.currentLevel)
     : null;
 
-  const canApplyCertificate = stats?.nextLevel && stats.nextLevel.progress >= 100;
-
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-500 pb-24">
@@ -170,14 +168,14 @@ export default function Profile() {
         </div>
 
         {stats?.nextLevel && (
-          <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-6 mb-6 border border-amber-100">
+          <div className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-2xl p-6 mb-6 border border-emerald-100">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <div
                   className="w-12 h-12 rounded-xl flex items-center justify-center"
                   style={{ backgroundColor: `${stats.nextLevel.level === 'bronze' ? '#CD7F32' : stats.nextLevel.level === 'silver' ? '#C0C0C0' : stats.nextLevel.level === 'gold' ? '#FFD700' : '#E5E4E2'}20` }}
                 >
-                  <Target
+                  <Trophy
                     className="w-6 h-6"
                     style={{
                       color:
@@ -192,35 +190,85 @@ export default function Profile() {
                   />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">下一等级</p>
+                  <p className="text-sm text-emerald-600 font-medium">可申请证书</p>
                   <p className="font-bold text-gray-800">{stats.nextLevel.name}</p>
-                  <p className="text-xs text-gray-400">
-                    还需 {Math.max(stats.nextLevel.requiredHours - stats.nextLevel.currentHours, 0).toFixed(1)} 小时
+                  <p className="text-xs text-gray-500">
+                    已达到申请条件（当前 {stats.nextLevel.currentHours.toFixed(1)} 小时，需 {stats.nextLevel.requiredHours} 小时）
                   </p>
                 </div>
               </div>
-              {canApplyCertificate && (
-                <button
-                  onClick={handleApplyCertificate}
-                  disabled={applying}
-                  className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-medium rounded-xl hover:shadow-lg hover:shadow-amber-200 transition-all disabled:opacity-50 text-sm"
-                >
-                  {applying ? '申请中...' : '立即申请'}
-                </button>
-              )}
+              <button
+                onClick={handleApplyCertificate}
+                disabled={applying}
+                className="px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-medium rounded-xl hover:shadow-lg hover:shadow-emerald-200 transition-all disabled:opacity-50 text-sm"
+              >
+                {applying ? '申请中...' : '立即申请'}
+              </button>
             </div>
             <div className="mt-4">
               <div className="h-2 bg-white/60 rounded-full overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all duration-500"
                   style={{
-                    width: `${Math.min(stats.nextLevel.progress, 100)}%`,
+                    width: '100%',
                     backgroundColor:
                       stats.nextLevel.level === 'bronze'
                         ? '#CD7F32'
                         : stats.nextLevel.level === 'silver'
                         ? '#C0C0C0'
                         : stats.nextLevel.level === 'gold'
+                        ? '#FFD700'
+                        : '#E5E4E2',
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!stats?.nextLevel && stats?.upcomingLevel && (
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-6 mb-6 border border-amber-100">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div
+                  className="w-12 h-12 rounded-xl flex items-center justify-center"
+                  style={{ backgroundColor: `${stats.upcomingLevel.level === 'bronze' ? '#CD7F32' : stats.upcomingLevel.level === 'silver' ? '#C0C0C0' : stats.upcomingLevel.level === 'gold' ? '#FFD700' : '#E5E4E2'}20` }}
+                >
+                  <Target
+                    className="w-6 h-6"
+                    style={{
+                      color:
+                        stats.upcomingLevel.level === 'bronze'
+                          ? '#CD7F32'
+                          : stats.upcomingLevel.level === 'silver'
+                          ? '#C0C0C0'
+                          : stats.upcomingLevel.level === 'gold'
+                          ? '#FFD700'
+                          : '#E5E4E2',
+                    }}
+                  />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">下一等级</p>
+                  <p className="font-bold text-gray-800">{stats.upcomingLevel.name}</p>
+                  <p className="text-xs text-gray-400">
+                    还需 {Math.max(stats.upcomingLevel.requiredHours - stats.upcomingLevel.currentHours, 0).toFixed(1)} 小时
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="mt-4">
+              <div className="h-2 bg-white/60 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${Math.min(stats.upcomingLevel.progress, 100)}%`,
+                    backgroundColor:
+                      stats.upcomingLevel.level === 'bronze'
+                        ? '#CD7F32'
+                        : stats.upcomingLevel.level === 'silver'
+                        ? '#C0C0C0'
+                        : stats.upcomingLevel.level === 'gold'
                         ? '#FFD700'
                         : '#E5E4E2',
                   }}

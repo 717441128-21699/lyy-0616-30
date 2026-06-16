@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { getStore, getNextId } from '../db/index.js';
+import { getStore, getNextId, persist } from '../db/index.js';
 import { generateToken } from '../middleware/auth.js';
 import type { User, LoginRequest, RegisterRequest, LoginResponse } from '../../shared/types.js';
 
@@ -66,6 +66,7 @@ export function register(req: RegisterRequest): LoginResponse {
   };
 
   store.users.push(newUser);
+  persist();
 
   const userData = sanitizeUser(newUser);
   const token = generateToken({
@@ -89,5 +90,6 @@ export function updateUserStats(userId: number, hoursToAdd: number): void {
   if (user) {
     user.totalHours = (user.totalHours || 0) + hoursToAdd;
     user.activityCount = (user.activityCount || 0) + 1;
+    persist();
   }
 }

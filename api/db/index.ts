@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 import type {
@@ -11,6 +13,8 @@ import type {
   RegistrationStatus,
   UserRole,
 } from '../../shared/types.js';
+
+const DB_FILE_PATH = path.resolve(process.cwd(), 'data', 'volunteer.db.json');
 
 interface DataStore {
   users: User[];
@@ -59,6 +63,41 @@ function generateCertificateNo(): string {
     date.getDate().toString().padStart(2, '0');
   const random = Math.random().toString(36).substring(2, 8).toUpperCase();
   return `VOL-${dateStr}-${random}`;
+}
+
+function saveToFile() {
+  const dataDir = path.dirname(DB_FILE_PATH);
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
+  }
+  fs.writeFileSync(DB_FILE_PATH, JSON.stringify(store, null, 2), 'utf-8');
+}
+
+function loadFromFile(): boolean {
+  if (!fs.existsSync(DB_FILE_PATH)) {
+    return false;
+  }
+  try {
+    const content = fs.readFileSync(DB_FILE_PATH, 'utf-8');
+    const data = JSON.parse(content) as DataStore;
+    if (data && data.users && data.activities && data.registrations && data.certificates && data.feedback && data.nextIds) {
+      store.users = data.users;
+      store.activities = data.activities;
+      store.registrations = data.registrations;
+      store.certificates = data.certificates;
+      store.feedback = data.feedback;
+      store.nextIds = data.nextIds;
+      return true;
+    }
+    return false;
+  } catch (e) {
+    console.error('Failed to load database from file:', e);
+    return false;
+  }
+}
+
+export function persist() {
+  saveToFile();
 }
 
 function initMockData() {
@@ -431,7 +470,13 @@ let initialized = false;
 
 export function initDatabase() {
   if (initialized) return;
-  initMockData();
+  const loaded = loadFromFile();
+  if (!loaded) {
+    initMockData();
+    saveToFile();
+  } else {
+    console.log('Database loaded from file successfully!');
+  }
   initialized = true;
 }
 

@@ -1,5 +1,6 @@
-import { getStore, getNextId } from '../db/index.js';
+import { getStore, getNextId, persist } from '../db/index.js';
 import type { Feedback, CreateFeedbackRequest } from '../../shared/types.js';
+import * as registrationService from './registration.service.js';
 
 export function createFeedback(
   data: CreateFeedbackRequest & { userId: number; userName: string }
@@ -13,6 +14,19 @@ export function createFeedback(
     throw new Error('您已经对该活动提交过反馈');
   }
 
+  const registrations = registrationService.getRegistrationsByUser(data.userId);
+  const validRegistration = registrations.find(
+    (r) => r.activityId === data.activityId && r.status === 'completed'
+  );
+
+  if (!validRegistration) {
+    throw new Error('您无权对该活动提交反馈');
+  }
+
+  if (validRegistration.userId !== data.userId) {
+    throw new Error('您无权对该活动提交反馈');
+  }
+
   const feedback: Feedback = {
     id: getNextId('feedback'),
     activityId: data.activityId,
@@ -24,6 +38,7 @@ export function createFeedback(
   };
 
   store.feedback.push(feedback);
+  persist();
   return feedback;
 }
 
