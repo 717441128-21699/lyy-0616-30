@@ -11,14 +11,37 @@ import {
   Download,
   Trophy,
   Target,
+  X,
+  Eye,
+  AlertCircle,
+  XCircle,
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { registrationApi, certificateApi, userApi, feedbackApi } from '../api';
-import type { Registration, Certificate, Feedback, UserStats } from '@shared/types';
+import type { Registration, Certificate, Feedback, UserStats, CertificateLevel } from '@shared/types';
 import { REGISTRATION_STATUS_LABELS, CERTIFICATE_LEVELS } from '@shared/types';
 import { cn } from '../lib/utils';
 
 type TabType = 'activities' | 'certificates' | 'feedback';
+type SelectedLevel = 'all' | CertificateLevel;
+
+const LEVEL_FILTERS: { key: SelectedLevel; label: string }[] = [
+  { key: 'all', label: '全部' },
+  { key: 'bronze', label: '铜级' },
+  { key: 'silver', label: '银级' },
+  { key: 'gold', label: '金级' },
+  { key: 'platinum', label: '白金' },
+];
+
+const getLevelColor = (level: CertificateLevel): string => {
+  const info = CERTIFICATE_LEVELS.find((l) => l.level === level);
+  return info?.color || '#10B981';
+};
+
+const getLevelName = (level: CertificateLevel): string => {
+  const info = CERTIFICATE_LEVELS.find((l) => l.level === level);
+  return info?.name || '志愿者证书';
+};
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -31,6 +54,9 @@ export default function Profile() {
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
+  const [selectedLevel, setSelectedLevel] = useState<SelectedLevel>('all');
+  const [previewCertificate, setPreviewCertificate] = useState<Certificate | null>(null);
+  const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'warning' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -61,6 +87,15 @@ export default function Profile() {
     loadData();
   }, [user, navigate]);
 
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => {
+        setToastMessage(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
+
   const handleApplyCertificate = async () => {
     if (!stats?.nextLevel) return;
 
@@ -70,10 +105,14 @@ export default function Profile() {
       setCertificates([result.certificate, ...certificates]);
       const newStats = await userApi.getStats();
       setStats(newStats);
-      alert('证书申请成功！');
+      setToastMessage({ type: 'success', text: '证书申请成功！' });
     } catch (err) {
       const message = err instanceof Error ? err.message : '申请失败';
-      alert(message);
+      if (message.includes('无需重复申请') || message.includes('已获得')) {
+        setToastMessage({ type: 'warning', text: '您已获得该等级证书，无需重复申请' });
+      } else {
+        setToastMessage({ type: 'error', text: message });
+      }
     } finally {
       setApplying(false);
     }
@@ -82,6 +121,10 @@ export default function Profile() {
   const handleDownloadCertificate = (id: number) => {
     window.open(`/api/certificates/${id}/pdf`, '_blank');
   };
+
+  const filteredCertificates = selectedLevel === 'all'
+    ? certificates
+    : certificates.filter((cert) => cert.level === selectedLevel);
 
   if (!user) return null;
 
@@ -99,6 +142,21 @@ export default function Profile() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {toastMessage && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 animate-fade-in">
+          <div className={cn(
+            'px-6 py-3 rounded-xl shadow-lg flex items-center space-x-2 font-medium text-sm',
+            toastMessage.type === 'success' && 'bg-emerald-50 border border-emerald-200 text-emerald-700',
+            toastMessage.type === 'warning' && 'bg-emerald-50 border border-emerald-200 text-emerald-700',
+            toastMessage.type === 'error' && 'bg-red-50 border border-red-200 text-red-700'
+          )}>
+            {toastMessage.type === 'success' && <Award className="w-4 h-4" />}
+            {toastMessage.type === 'warning' && <AlertCircle className="w-4 h-4" />}
+            {toastMessage.type === 'error' && <XCircle className="w-4 h-4" />}
+            <span>{toastMessage.text}</span>
+          </div>
+        </div>
+      )}
       <div className="bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-500 pb-24">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
           <h1 className="text-2xl font-bold text-white mb-6">个人中心</h1>
@@ -362,63 +420,102 @@ export default function Profile() {
                 </div>
               )
             ) : activeTab === 'certificates' ? (
-              certificates.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {certificates.map((cert) => {
-                    const levelInfo = CERTIFICATE_LEVELS.find((l) => l.level === cert.level);
-                    return (
-                      <div
-                        key={cert.id}
-                        className="relative overflow-hidden rounded-xl border-2 p-5 hover:shadow-lg transition-all"
-                        style={{ borderColor: levelInfo?.color || '#10B981' }}
-                      >
+              <div>
+                <div className="mb-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex flex-wrap gap-2">
+                      {LEVEL_FILTERS.map((filter) => (
+                        <button
+                          key={filter.key}
+                          onClick={() => setSelectedLevel(filter.key)}
+                          className={cn(
+                            'px-4 py-1.5 rounded-full text-sm font-medium transition-all',
+                            selectedLevel === filter.key
+                              ? 'bg-emerald-500 text-white shadow-sm'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          )}
+                        >
+                          {filter.label}
+                        </button>
+                      ))}
+                    </div>
+                    <span className="text-sm text-gray-500">
+                      共 {filteredCertificates.length} 张
+                    </span>
+                  </div>
+                </div>
+                {filteredCertificates.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {filteredCertificates.map((cert) => {
+                      const levelInfo = CERTIFICATE_LEVELS.find((l) => l.level === cert.level);
+                      return (
                         <div
-                          className="absolute top-0 right-0 w-20 h-20 rounded-full opacity-10 -mr-10 -mt-10"
-                          style={{ backgroundColor: levelInfo?.color || '#10B981' }}
-                        />
-                        <div className="relative">
-                          <div className="flex items-center space-x-3 mb-3">
-                            <Award
-                              className="w-8 h-8"
-                              style={{ color: levelInfo?.color || '#10B981' }}
-                            />
-                            <div>
-                              <h4 className="font-bold text-gray-800">
-                                {levelInfo?.name || '志愿者证书'}
-                              </h4>
-                              <p className="text-xs text-gray-400">{cert.certificateNo}</p>
+                          key={cert.id}
+                          className="relative overflow-hidden rounded-xl border-2 p-5 hover:shadow-lg transition-all"
+                          style={{ borderColor: levelInfo?.color || '#10B981' }}
+                        >
+                          <div
+                            className="absolute top-0 right-0 w-20 h-20 rounded-full opacity-10 -mr-10 -mt-10"
+                            style={{ backgroundColor: levelInfo?.color || '#10B981' }}
+                          />
+                          <div className="relative">
+                            <div className="flex items-center space-x-3 mb-3">
+                              <Award
+                                className="w-8 h-8"
+                                style={{ color: levelInfo?.color || '#10B981' }}
+                              />
+                              <div>
+                                <h4 className="font-bold text-gray-800">
+                                  {levelInfo?.name || '志愿者证书'}
+                                </h4>
+                                <p className="text-xs text-gray-400">{cert.certificateNo}</p>
+                              </div>
+                            </div>
+                            <p className="text-sm text-gray-600 mb-1">
+                              累计服务 <span className="font-bold text-gray-800">{cert.totalHours.toFixed(1)}</span> 小时
+                            </p>
+                            <p className="text-sm text-gray-600 mb-3">
+                              参与活动 <span className="font-bold text-gray-800">{cert.activityCount}</span> 次
+                            </p>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setPreviewCertificate(cert);
+                                }}
+                                className="flex-1 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors flex items-center justify-center space-x-1"
+                              >
+                                <Eye className="w-4 h-4" />
+                                <span>预览</span>
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDownloadCertificate(cert.id);
+                                }}
+                                className="flex-1 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors flex items-center justify-center space-x-1"
+                              >
+                                <Download className="w-4 h-4" />
+                                <span>下载PDF</span>
+                              </button>
                             </div>
                           </div>
-                          <p className="text-sm text-gray-600 mb-1">
-                            累计服务 <span className="font-bold text-gray-800">{cert.totalHours.toFixed(1)}</span> 小时
-                          </p>
-                          <p className="text-sm text-gray-600 mb-3">
-                            参与活动 <span className="font-bold text-gray-800">{cert.activityCount}</span> 次
-                          </p>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDownloadCertificate(cert.id);
-                            }}
-                            className="w-full py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors flex items-center justify-center space-x-1"
-                          >
-                            <Download className="w-4 h-4" />
-                            <span>下载证书</span>
-                          </button>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <Award className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-                  <p className="text-gray-400 mb-4">暂无证书</p>
-                  <p className="text-sm text-gray-400">
-                    累计服务满 20 小时即可申请铜级志愿者证书
-                  </p>
-                </div>
-              )
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <Award className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+                    <p className="text-gray-400 mb-4">
+                      {selectedLevel === 'all' ? '暂无证书' : '暂无该等级的证书'}
+                    </p>
+                    <p className="text-sm text-gray-400">
+                      累计服务满 20 小时即可申请铜级志愿者证书
+                    </p>
+                  </div>
+                )}
+              </div>
             ) : feedbacks.length > 0 ? (
               <div className="space-y-3">
                 {feedbacks.map((feedback) => (
@@ -459,6 +556,112 @@ export default function Profile() {
           </div>
         </div>
       </div>
+
+      {previewCertificate && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-gray-800">证书预览</h2>
+              <button
+                onClick={() => setPreviewCertificate(null)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto flex-1">
+              <div
+                className="relative rounded-xl overflow-hidden border-4 shadow-inner"
+                style={{ borderColor: getLevelColor(previewCertificate.level) }}
+              >
+                <div
+                  className="h-4 w-full"
+                  style={{
+                    background: `linear-gradient(90deg, ${getLevelColor(previewCertificate.level)}, ${getLevelColor(previewCertificate.level)}88, ${getLevelColor(previewCertificate.level)})`,
+                  }}
+                />
+                <div className="p-8 bg-gradient-to-b from-white via-gray-50/30 to-white">
+                  <div className="text-center mb-6">
+                    <Award
+                      className="w-12 h-12 mx-auto mb-3"
+                      style={{ color: getLevelColor(previewCertificate.level) }}
+                    />
+                    <h1 className="text-2xl font-bold text-gray-800 tracking-wider">
+                      公益志愿服务证书
+                    </h1>
+                  </div>
+
+                  <div className="space-y-4 text-center">
+                    <div>
+                      <p className="text-xs text-gray-400 mb-1">证书编号</p>
+                      <p className="font-mono text-sm text-gray-600">{previewCertificate.certificateNo}</p>
+                    </div>
+
+                    <div className="py-2">
+                      <p className="text-xs text-gray-400 mb-1">志愿者姓名</p>
+                      <p className="text-lg font-medium text-gray-800">{previewCertificate.userName}</p>
+                    </div>
+
+                    <div
+                      className="py-4 px-6 rounded-xl mx-auto inline-block"
+                      style={{
+                        backgroundColor: `${getLevelColor(previewCertificate.level)}15`,
+                      }}
+                    >
+                      <p
+                        className="text-3xl font-bold tracking-wide"
+                        style={{ color: getLevelColor(previewCertificate.level) }}
+                      >
+                        {getLevelName(previewCertificate.level)}
+                      </p>
+                    </div>
+
+                    <div className="py-2">
+                      <p className="text-sm text-gray-600">
+                        累计服务 <span className="font-bold text-gray-800 text-lg">{previewCertificate.totalHours.toFixed(1)}</span> 小时，
+                        参与活动 <span className="font-bold text-gray-800 text-lg">{previewCertificate.activityCount}</span> 次
+                      </p>
+                      <p className="text-sm text-gray-500 mt-1">特颁发此证书，以资鼓励</p>
+                    </div>
+
+                    <div className="pt-4 border-t border-gray-100 mt-2">
+                      <p className="text-xs text-gray-400 mb-1">颁发日期</p>
+                      <p className="text-sm text-gray-600">
+                        {new Date(previewCertificate.issuedAt).toLocaleDateString('zh-CN', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div
+                  className="h-2 w-full"
+                  style={{
+                    background: `linear-gradient(90deg, ${getLevelColor(previewCertificate.level)}, ${getLevelColor(previewCertificate.level)}88, ${getLevelColor(previewCertificate.level)})`,
+                  }}
+                />
+              </div>
+            </div>
+            <div className="p-4 border-t border-gray-100 flex gap-3">
+              <button
+                onClick={() => setPreviewCertificate(null)}
+                className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50 transition-colors font-medium"
+              >
+                关闭
+              </button>
+              <button
+                onClick={() => handleDownloadCertificate(previewCertificate.id)}
+                className="flex-1 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl text-sm hover:shadow-lg hover:shadow-emerald-200 transition-all font-medium flex items-center justify-center space-x-1"
+              >
+                <Download className="w-4 h-4" />
+                <span>下载证书</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

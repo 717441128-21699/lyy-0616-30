@@ -198,3 +198,22 @@ export const CERTIFICATE_LEVELS = [
   { level: 'gold', name: '金级志愿者', hours: 100, color: '#FFD700' },
   { level: 'platinum', name: '白金志愿者', hours: 200, color: '#E5E4E2' },
 ];
+
+export type NotificationType =
+  | 'registration_approved'
+  | 'registration_rejected'
+  | 'check_in_completed'
+  | 'check_out_completed'
+  | 'certificate_granted';
+
+export interface Notification {
+  id: number;
+  userId: number;
+  type: NotificationType;
+  title: string;
+  content: string;
+  relatedId?: number;
+  relatedType?: 'registration' | 'activity' | 'certificate';
+  read: boolean;
+  createdAt: string;
+}

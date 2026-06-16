@@ -165,3 +165,36 @@ export async function addActivitySummary(req: Request, res: Response): Promise<v
     res.status(400).json({ error: message });
   }
 }
+
+export async function getActivityStats(req: Request, res: Response): Promise<void> {
+  try {
+    if (!req.user || req.user.role !== 'organization') {
+      res.status(403).json({ error: '无权限访问' });
+      return;
+    }
+    const stats = activityService.getOrganizerActivityStats(req.user.userId);
+    res.json({ stats });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '获取统计失败';
+    res.status(400).json({ error: message });
+  }
+}
+
+export async function getActivityDetailStats(req: Request, res: Response): Promise<void> {
+  try {
+    if (!req.user || req.user.role !== 'organization') {
+      res.status(403).json({ error: '无权限访问' });
+      return;
+    }
+    const activityId = Number(req.params.id);
+    const detail = activityService.getOrganizerActivityDetailStats(req.user.userId, activityId);
+    if (!detail) {
+      res.status(404).json({ error: '活动不存在或无权限访问' });
+      return;
+    }
+    res.json({ detail });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '获取详情失败';
+    res.status(400).json({ error: message });
+  }
+}

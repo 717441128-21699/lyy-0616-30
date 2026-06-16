@@ -8,6 +8,7 @@ import {
   FileText,
   LogOut,
   Heart,
+  BarChart3,
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { cn } from '../lib/utils';
@@ -27,6 +28,7 @@ export function OrgLayout({ children }: OrgLayoutProps) {
     { path: '/org/registrations', label: '报名审核', icon: Users },
     { path: '/org/checkin', label: '签到管理', icon: QrCode },
     { path: '/org/summary', label: '活动总结', icon: FileText },
+    { path: '/org/stats', label: '数据看板', icon: BarChart3 },
   ];
 
   const isActive = (path: string) => {

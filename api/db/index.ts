@@ -12,6 +12,8 @@ import type {
   ActivityStatus,
   RegistrationStatus,
   UserRole,
+  Notification,
+  NotificationType,
 } from '../../shared/types.js';
 
 const DB_FILE_PATH = path.resolve(process.cwd(), 'data', 'volunteer.db.json');
@@ -22,12 +24,14 @@ interface DataStore {
   registrations: Registration[];
   certificates: Certificate[];
   feedback: Feedback[];
+  notifications: Notification[];
   nextIds: {
     users: number;
     activities: number;
     registrations: number;
     certificates: number;
     feedback: number;
+    notifications: number;
   };
 }
 
@@ -37,12 +41,14 @@ const store: DataStore = {
   registrations: [],
   certificates: [],
   feedback: [],
+  notifications: [],
   nextIds: {
     users: 1,
     activities: 1,
     registrations: 1,
     certificates: 1,
     feedback: 1,
+    notifications: 1,
   },
 };
 
@@ -86,7 +92,11 @@ function loadFromFile(): boolean {
       store.registrations = data.registrations;
       store.certificates = data.certificates;
       store.feedback = data.feedback;
-      store.nextIds = data.nextIds;
+      store.notifications = data.notifications || [];
+      store.nextIds = {
+        ...data.nextIds,
+        notifications: data.nextIds.notifications || 1,
+      };
       return true;
     }
     return false;

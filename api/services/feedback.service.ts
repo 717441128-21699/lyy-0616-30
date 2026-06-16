@@ -1,17 +1,23 @@
 import { getStore, getNextId, persist } from '../db/index.js';
 import type { Feedback, CreateFeedbackRequest } from '../../shared/types.js';
 import * as registrationService from './registration.service.js';
+import * as activityService from './activity.service.js';
 
 export function createFeedback(
   data: CreateFeedbackRequest & { userId: number; userName: string }
 ): Feedback {
   const store = getStore();
 
+  const activity = activityService.getActivityById(data.activityId);
+  if (!activity || activity.status !== 'completed') {
+    throw new Error('活动尚未结束，暂不能提交反馈');
+  }
+
   const existing = store.feedback.find(
     (f) => f.activityId === data.activityId && f.userId === data.userId
   );
   if (existing) {
-    throw new Error('您已经对该活动提交过反馈');
+    throw new Error('您已提交过该活动的反馈');
   }
 
   const registrations = registrationService.getRegistrationsByUser(data.userId);
@@ -20,11 +26,12 @@ export function createFeedback(
   );
 
   if (!validRegistration) {
-    throw new Error('您无权对该活动提交反馈');
-  }
-
-  if (validRegistration.userId !== data.userId) {
-    throw new Error('您无权对该活动提交反馈');
+    const hasRegistration = registrations.some((r) => r.activityId === data.activityId);
+    if (hasRegistration) {
+      throw new Error('您尚未完成该活动的志愿服务，不能提交反馈');
+    } else {
+      throw new Error('您无权对该活动提交反馈');
+    }
   }
 
   const feedback: Feedback = {

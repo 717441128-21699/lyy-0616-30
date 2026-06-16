@@ -1,6 +1,7 @@
 import { getStore, getNextId, generateQrToken, persist } from '../db/index.js';
 import { incrementParticipants, decrementParticipants } from './activity.service.js';
 import { updateUserStats } from './auth.service.js';
+import * as notificationService from './notification.service.js';
 import type { Registration, RegistrationStatus } from '../../shared/types.js';
 
 export function createRegistration(
@@ -83,13 +84,32 @@ export function auditRegistration(
     throw new Error('该报名已审核过');
   }
 
+  const activityId = registration.activityId;
+  const activity = store.activities.find((a) => a.id === activityId);
+
   if (approved) {
     registration.status = 'approved';
     registration.qrToken = generateQrToken();
+    notificationService.createNotification({
+      userId: registration.userId,
+      type: 'registration_approved',
+      title: '报名审核通过',
+      content: `您报名的「${activity?.title || '活动'}」已通过审核，请按时参与活动`,
+      relatedId: activityId,
+      relatedType: 'activity',
+    });
   } else {
     registration.status = 'rejected';
     registration.auditNote = auditNote;
     decrementParticipants(registration.activityId);
+    notificationService.createNotification({
+      userId: registration.userId,
+      type: 'registration_rejected',
+      title: '报名未通过',
+      content: `很遗憾，您报名的「${activity?.title || '活动'}」未通过审核，原因：${auditNote || '不符合要求'}`,
+      relatedId: activityId,
+      relatedType: 'activity',
+    });
   }
 
   registration.auditedAt = new Date().toISOString();
@@ -122,6 +142,17 @@ export function checkInByToken(token: string): Registration | null {
 
   registration.checkInTime = new Date().toISOString();
   persist();
+
+  const activity = store.activities.find((a) => a.id === registration.activityId);
+  notificationService.createNotification({
+    userId: registration.userId,
+    type: 'check_in_completed',
+    title: '签到成功',
+    content: `您已成功签到「${activity?.title || '活动'}」，签退时请再次扫码`,
+    relatedId: registration.id,
+    relatedType: 'registration',
+  });
+
   return registration;
 }
 
@@ -150,6 +181,16 @@ export function checkOutByToken(token: string): Registration | null {
     updateUserStats(registration.userId, registration.serviceHours);
   }
   persist();
+
+  const activity = store.activities.find((a) => a.id === registration.activityId);
+  notificationService.createNotification({
+    userId: registration.userId,
+    type: 'check_out_completed',
+    title: '服务完成',
+    content: `您已完成「${activity?.title || '活动'}」的志愿服务，本次服务时长：${registration.serviceHours?.toFixed(1) || 0} 小时`,
+    relatedId: registration.id,
+    relatedType: 'registration',
+  });
 
   return registration;
 }

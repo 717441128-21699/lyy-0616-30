@@ -1,10 +1,26 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Heart, User, LogOut, LayoutDashboard } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Heart, User, LogOut, LayoutDashboard, Bell } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
+import { notificationApi } from '../api';
 
 export function Navbar() {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+    const fetchUnreadCount = async () => {
+      try {
+        const result = await notificationApi.getUnreadCount();
+        setUnreadCount(result.count);
+      } catch (err) {
+        console.error('Failed to fetch unread count:', err);
+      }
+    };
+    fetchUnreadCount();
+  }, [user]);
 
   const handleLogout = () => {
     logout();
@@ -36,6 +52,17 @@ export function Navbar() {
                     <span>管理后台</span>
                   </Link>
                 )}
+                <Link
+                  to="/notifications"
+                  className="relative flex items-center justify-center w-9 h-9 rounded-full text-gray-600 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+                >
+                  <Bell className="w-5 h-5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-xs font-medium rounded-full flex items-center justify-center shadow-sm">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
+                </Link>
                 <Link
                   to="/profile"
                   className="flex items-center space-x-2 text-gray-700 hover:text-emerald-600 transition-colors"

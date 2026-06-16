@@ -6,11 +6,14 @@ import ActivityDetail from './pages/ActivityDetail';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Profile from './pages/Profile';
+import Notifications from './pages/Notifications';
 import OrgDashboard from './pages/org/OrgDashboard';
 import OrgActivities from './pages/org/OrgActivities';
 import OrgRegistrations from './pages/org/OrgRegistrations';
 import OrgCheckIn from './pages/org/OrgCheckIn';
 import OrgSummary from './pages/org/OrgSummary';
+import OrgStats from './pages/org/OrgStats';
+import OrgActivityStatsDetail from './pages/org/OrgActivityStatsDetail';
 import { useAuthStore } from './store/useAuthStore';
 
 function AppContent() {
@@ -35,6 +38,7 @@ function AppContent() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/notifications" element={<Notifications />} />
 
         <Route path="/org/dashboard" element={<OrgDashboard />} />
         <Route path="/org/activities" element={<OrgActivities />} />
@@ -43,6 +47,8 @@ function AppContent() {
         <Route path="/org/checkin" element={<OrgCheckIn />} />
         <Route path="/org/activity/:id/checkin" element={<OrgCheckIn />} />
         <Route path="/org/summary" element={<OrgSummary />} />
+        <Route path="/org/stats" element={<OrgStats />} />
+        <Route path="/org/activity/:id/stats" element={<OrgActivityStatsDetail />} />
       </Routes>
     </div>
   );

@@ -1,4 +1,5 @@
 import { getStore, getNextId, generateCertificateNo, persist } from '../db/index.js';
+import * as notificationService from './notification.service.js';
 import type { Certificate, CertificateLevel, CertificateLevelInfo, UserStats } from '../../shared/types.js';
 
 const CERTIFICATE_LEVELS: Record<CertificateLevel, { name: string; minHours: number; color: string }> = {
@@ -100,6 +101,7 @@ export function applyCertificate(userId: number): Certificate {
 
   let eligibleLevel: CertificateLevel | null = null;
   const levels = Object.keys(CERTIFICATE_LEVELS) as CertificateLevel[];
+  let highestEligibleExistingLevel: CertificateLevel | null = null;
 
   for (const level of levels) {
     if (user.totalHours >= CERTIFICATE_LEVELS[level].minHours) {
@@ -109,13 +111,22 @@ export function applyCertificate(userId: number): Certificate {
       if (!existing) {
         eligibleLevel = level;
         break;
+      } else {
+        highestEligibleExistingLevel = level;
       }
     }
   }
 
   if (!eligibleLevel) {
-    throw new Error('暂无可申请的证书，请继续积累志愿服务时长');
+    if (highestEligibleExistingLevel) {
+      const name = CERTIFICATE_LEVELS[highestEligibleExistingLevel].name;
+      throw new Error(`您已获得${name}证书，无需重复申请`);
+    } else {
+      throw new Error('暂无可申请的证书等级');
+    }
   }
+
+  const certificateInfo = CERTIFICATE_LEVELS[eligibleLevel];
 
   const certificate: Certificate = {
     id: getNextId('certificates'),
@@ -130,6 +141,16 @@ export function applyCertificate(userId: number): Certificate {
 
   store.certificates.push(certificate);
   persist();
+
+  notificationService.createNotification({
+    userId: userId,
+    type: 'certificate_granted',
+    title: '证书颁发成功',
+    content: `恭喜您获得「${certificateInfo.name}」公益证书，证书编号：${certificate.certificateNo}`,
+    relatedId: certificate.id,
+    relatedType: 'certificate',
+  });
+
   return certificate;
 }
 

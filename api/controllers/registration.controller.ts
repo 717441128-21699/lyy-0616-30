@@ -248,6 +248,14 @@ export async function getRegistrationDetail(req: Request, res: Response): Promis
       return;
     }
 
+    if (req.user.role === 'organization') {
+      const activity = activityService.getActivityById(registration.activityId);
+      if (!activity || activity.organizerId !== req.user.userId) {
+        res.status(403).json({ error: '无权限查看' });
+        return;
+      }
+    }
+
     res.json({ registration });
   } catch (err) {
     const message = err instanceof Error ? err.message : '获取报名详情失败';

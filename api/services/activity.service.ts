@@ -166,3 +166,115 @@ export function addActivitySummary(activityId: number, summary: string): Activit
   persist();
   return activity;
 }
+
+export interface ActivityStats {
+  activityId: number;
+  activityTitle: string;
+  activityType: string;
+  activityDate: string;
+  city: string;
+  registrationCount: number;
+  approvedCount: number;
+  approvalRate: number;
+  checkInCount: number;
+  checkInRate: number;
+  totalServiceHours: number;
+  avgRating: number;
+  feedbackCount: number;
+}
+
+export interface ActivityDetailStats {
+  summary: ActivityStats;
+  volunteers: Array<{
+    registrationId: number;
+    userId: number;
+    userName: string;
+    userPhone: string;
+    status: string;
+    checkInTime: string | null;
+    checkOutTime: string | null;
+    serviceHours: number | null;
+  }>;
+  feedbacks: Array<{
+    feedbackId: number;
+    userId: number;
+    userName: string;
+    rating: number;
+    content: string;
+    createdAt: string;
+  }>;
+}
+
+export function getOrganizerActivityStats(organizerId: number): ActivityStats[] {
+  const store = getStore();
+  const activities = store.activities.filter((a) => a.organizerId === organizerId);
+  
+  return activities.map((activity) => {
+    const registrations = store.registrations.filter((r) => r.activityId === activity.id);
+    const approvedCount = registrations.filter((r) => r.status === 'approved' || r.status === 'completed').length;
+    const registrationCount = registrations.length;
+    const approvalRate = registrationCount > 0 ? (approvedCount / registrationCount) * 100 : 0;
+    
+    const checkedIn = registrations.filter((r) => r.checkInTime).length;
+    const checkInRate = approvedCount > 0 ? (checkedIn / approvedCount) * 100 : 0;
+    
+    const totalHours = registrations.reduce((sum, r) => sum + (r.serviceHours || 0), 0);
+    
+    const feedbacks = store.feedback.filter((f) => f.activityId === activity.id);
+    const avgRating = feedbacks.length > 0
+      ? feedbacks.reduce((sum, f) => sum + f.rating, 0) / feedbacks.length
+      : 0;
+    
+    return {
+      activityId: activity.id,
+      activityTitle: activity.title,
+      activityType: activity.type,
+      activityDate: activity.startDate,
+      city: activity.city,
+      registrationCount,
+      approvedCount,
+      approvalRate,
+      checkInCount: checkedIn,
+      checkInRate,
+      totalServiceHours: totalHours,
+      avgRating,
+      feedbackCount: feedbacks.length,
+    };
+  }).sort((a, b) => new Date(b.activityDate).getTime() - new Date(a.activityDate).getTime());
+}
+
+export function getOrganizerActivityDetailStats(organizerId: number, activityId: number): ActivityDetailStats | null {
+  const store = getStore();
+  const activity = store.activities.find((a) => a.id === activityId && a.organizerId === organizerId);
+  if (!activity) return null;
+  
+  const statsList = getOrganizerActivityStats(organizerId);
+  const summary = statsList.find((s) => s.activityId === activityId)!;
+  
+  const registrations = store.registrations.filter((r) => r.activityId === activityId);
+  const volunteers = registrations.map((r) => {
+    const user = store.users.find((u) => u.id === r.userId);
+    return {
+      registrationId: r.id,
+      userId: r.userId,
+      userName: r.userName || user?.name || '',
+      userPhone: r.userPhone || user?.phone || '',
+      status: r.status,
+      checkInTime: r.checkInTime,
+      checkOutTime: r.checkOutTime,
+      serviceHours: r.serviceHours || null,
+    };
+  });
+  
+  const feedbackData = store.feedback.filter((f) => f.activityId === activityId);
+  const feedbacks = feedbackData.map((f) => ({
+    feedbackId: f.id,
+    userId: f.userId,
+    userName: f.userName || store.users.find(u => u.id === f.userId)?.name || '',
+    rating: f.rating,
+    content: f.content,
+    createdAt: f.createdAt,
+  }));
+  
+  return { summary, volunteers, feedbacks };
+}

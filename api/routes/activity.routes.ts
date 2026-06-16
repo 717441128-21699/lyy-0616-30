@@ -8,6 +8,8 @@ const router = Router();
 
 router.get('/', activityController.getActivityList);
 router.get('/my', authMiddleware, requireRole('organization'), activityController.getMyActivities);
+router.get('/stats', authMiddleware, activityController.getActivityStats);
+router.get('/:id/stats-detail', authMiddleware, activityController.getActivityDetailStats);
 router.get('/:id', activityController.getActivityDetail);
 
 router.post('/', authMiddleware, requireRole('organization'), activityController.createActivity);

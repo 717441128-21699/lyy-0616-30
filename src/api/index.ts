@@ -1,4 +1,4 @@
-import { api } from './request';
+import { api, request } from './request';
 import type {
   User,
   Activity,
@@ -11,11 +11,50 @@ import type {
   CreateActivityRequest,
   CreateFeedbackRequest,
   UserStats,
+  Notification,
 } from '@shared/types';
 
 interface ListResponse<T> {
   list: T[];
   total: number;
+}
+
+export interface ActivityStats {
+  activityId: number;
+  activityTitle: string;
+  activityType: string;
+  activityDate: string;
+  city: string;
+  registrationCount: number;
+  approvedCount: number;
+  approvalRate: number;
+  checkInCount: number;
+  checkInRate: number;
+  totalServiceHours: number;
+  avgRating: number;
+  feedbackCount: number;
+}
+
+export interface ActivityDetailStats {
+  summary: ActivityStats;
+  volunteers: Array<{
+    registrationId: number;
+    userId: number;
+    userName: string;
+    userPhone: string;
+    status: string;
+    checkInTime: string | null;
+    checkOutTime: string | null;
+    serviceHours: number | null;
+  }>;
+  feedbacks: Array<{
+    feedbackId: number;
+    userId: number;
+    userName: string;
+    rating: number;
+    content: string;
+    createdAt: string;
+  }>;
 }
 
 export const authApi = {
@@ -52,6 +91,10 @@ export const activityApi = {
     api.get<ListResponse<Activity>>('/activities/my/list'),
   addSummary: (id: number, summary: string) =>
     api.post<Activity>(`/activities/${id}/summary`, { summary }),
+  getStats: (): Promise<{ stats: ActivityStats[] }> =>
+    api.get<{ stats: ActivityStats[] }>('/activities/stats'),
+  getDetailStats: (id: number): Promise<{ detail: ActivityDetailStats }> =>
+    api.get<{ detail: ActivityDetailStats }>(`/activities/${id}/stats-detail`),
 };
 
 export const registrationApi = {
@@ -105,4 +148,15 @@ export const feedbackApi = {
     api.get<ListResponse<Feedback>>(`/activities/${activityId}/feedback`),
   getMyFeedback: () =>
     api.get<ListResponse<Feedback>>('/feedback/mine'),
+};
+
+export const notificationApi = {
+  getList: (): Promise<{ notifications: Notification[]; unreadCount: number }> =>
+    request('/notifications'),
+  getUnreadCount: (): Promise<{ count: number }> =>
+    request('/notifications/unread-count'),
+  markAsRead: (id: number): Promise<{ success: boolean }> =>
+    request(`/notifications/${id}/read`, { method: 'PATCH' }),
+  markAllAsRead: (): Promise<{ count: number }> =>
+    request('/notifications/mark-all-read', { method: 'POST' }),
 };
